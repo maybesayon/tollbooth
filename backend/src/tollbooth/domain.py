@@ -144,6 +144,7 @@ class Budget:
     enabled: bool
     created_at: datetime
     updated_at: datetime
+    channel_ids: tuple[str, ...] = ()
 
     def applies_to(self, team: str, virtual_key_id: str) -> bool:
         match self.scope:
@@ -153,3 +154,54 @@ class Budget:
                 return self.scope_value == team
             case BudgetScope.KEY:
                 return self.scope_value == virtual_key_id
+
+
+class ChannelType(StrEnum):
+    WEBHOOK = "webhook"
+    SLACK = "slack"
+
+
+@dataclass(frozen=True)
+class Channel:
+    """Where alerts are delivered. The URL (and webhook signing secret) are stored encrypted."""
+
+    id: str
+    name: str
+    type: ChannelType
+    url_hint: str
+    created_at: datetime
+
+
+class DeliveryStatus(StrEnum):
+    PENDING = "pending"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+@dataclass(frozen=True)
+class Delivery:
+    id: str
+    alert_id: str
+    channel_id: str
+    channel_name: str
+    status: DeliveryStatus
+    attempts: int
+    last_error: str | None
+    updated_at: datetime
+
+
+@dataclass(frozen=True)
+class Alert:
+    """A budget crossing one of its thresholds, at most once per budget, period, and threshold."""
+
+    id: str
+    budget_id: str
+    budget_name: str
+    threshold: int
+    period_start: datetime
+    period_end: datetime
+    spend_nanousd: int
+    limit_nanousd: int
+    created_at: datetime
+    deliveries: tuple[Delivery, ...] = ()

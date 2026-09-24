@@ -18,6 +18,7 @@ from sqlalchemy import (
     Table,
     Text,
     TypeDecorator,
+    UniqueConstraint,
     event,
 )
 from sqlalchemy.engine import make_url
@@ -118,6 +119,70 @@ budgets = Table(
     Column("created_at", UTCDateTime, nullable=False),
     Column("updated_at", UTCDateTime, nullable=False),
     Index(None, "scope", "scope_value"),
+)
+
+
+alert_channels = Table(
+    "alert_channels",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("name", String(200), nullable=False, unique=True),
+    Column("type", String(16), nullable=False),
+    Column("url_hint", String(200), nullable=False),
+    Column("encrypted_url", Text, nullable=False),
+    Column("encrypted_secret", Text, nullable=True),
+    Column("created_at", UTCDateTime, nullable=False),
+)
+
+budget_channels = Table(
+    "budget_channels",
+    metadata,
+    Column(
+        "budget_id",
+        String(32),
+        ForeignKey("budgets.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "channel_id",
+        String(32),
+        ForeignKey("alert_channels.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+budget_alerts = Table(
+    "budget_alerts",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("budget_id", String(32), nullable=False),
+    Column("budget_name", String(200), nullable=False),
+    Column("threshold", Integer, nullable=False),
+    Column("period_start", UTCDateTime, nullable=False),
+    Column("period_end", UTCDateTime, nullable=False),
+    Column("spend_nanousd", BigInteger, nullable=False),
+    Column("limit_nanousd", BigInteger, nullable=False),
+    Column("created_at", UTCDateTime, nullable=False, index=True),
+    UniqueConstraint("budget_id", "period_start", "threshold"),
+)
+
+alert_deliveries = Table(
+    "alert_deliveries",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column(
+        "alert_id",
+        String(32),
+        ForeignKey("budget_alerts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+    Column("channel_id", String(32), nullable=False),
+    Column("channel_name", String(200), nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("attempts", Integer, nullable=False),
+    Column("last_error", String(500), nullable=True),
+    Column("updated_at", UTCDateTime, nullable=False),
 )
 
 

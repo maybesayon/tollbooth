@@ -119,8 +119,41 @@ All routes require `Authorization: Bearer $TOLLBOOTH_ADMIN_TOKEN`. Interactive d
 | `POST` | `/admin/budgets` | Create a budget: `name`, `scope` (`{"type": "global"\|"team"\|"key", "value": ...}`), `period` (`day`\|`week`\|`month`, UTC), `limit_usd`, `enforcement` (`soft`\|`hard`), `thresholds` (percent, default `[50, 80, 100]`) |
 | `GET` | `/admin/budgets` | Budgets with current-period spend, percent used, and whether each is exhausted |
 | `GET` / `PATCH` / `DELETE` | `/admin/budgets/{id}` | Read, partially update, or delete a budget |
+| `POST` | `/admin/channels` | Add an alert channel: `name`, `type` (`webhook`\|`slack`), `url`. Webhooks get a `signing_secret`, shown once. |
+| `GET` / `DELETE` | `/admin/channels`, `/admin/channels/{id}` | List (URL host only) or delete channels |
+| `POST` | `/admin/channels/{id}/test` | Send a test notification |
+| `GET` | `/admin/alerts` | Recent threshold alerts with per-channel delivery status (`?budget_id=`, `?limit=`) |
+
+Budgets take `channel_ids` to choose where their alerts go.
 
 Ledger filters, accepted by all three reporting routes: `start` (inclusive), `end` (exclusive), `team`, `provider`, `model`, `key_id`, `outcome`.
+
+## Budget alerts
+
+When a budget's spend crosses one of its thresholds (default 50%, 80%, 100%), Tollbooth sends one alert per threshold per period to the budget's channels, retrying failed deliveries up to three times. If several thresholds are crossed at once, only the highest is sent; the others are recorded as skipped. Slack channels get a readable message. Webhook channels get a JSON event:
+
+```json
+{
+  "type": "budget.threshold_crossed",
+  "threshold_percent": 80,
+  "spend_usd": "80.12",
+  "limit_usd": "100",
+  "period": {"type": "month", "start": "2026-09-01T00:00:00Z", "end": "2026-10-01T00:00:00Z"},
+  "budget": {"id": "…", "name": "search monthly", "scope": {"type": "team", "value": "search"}, "enforcement": "hard"}
+}
+```
+
+Verify webhook requests by recomputing the signature and rejecting stale timestamps:
+
+```python
+import hashlib, hmac, time
+
+def verify(secret: str, headers, body: bytes) -> bool:
+    timestamp = headers["X-Tollbooth-Timestamp"]
+    expected = "v1=" + hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+    fresh = abs(time.time() - int(timestamp)) < 300
+    return fresh and hmac.compare_digest(expected, headers["X-Tollbooth-Signature"])
+```
 
 ## Configuration
 

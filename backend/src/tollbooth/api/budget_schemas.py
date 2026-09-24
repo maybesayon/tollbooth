@@ -29,6 +29,11 @@ def _thresholds(value: list[int]) -> list[int]:
 LimitUSD = Annotated[Decimal, AfterValidator(_limit)]
 Thresholds = Annotated[list[int], Field(max_length=10), AfterValidator(_thresholds)]
 Name = Annotated[str, Field(min_length=1, max_length=200, pattern=r"\S")]
+ChannelIds = Annotated[
+    list[str],
+    Field(max_length=20, description="Alert channels notified when a threshold is crossed."),
+    AfterValidator(lambda ids: sorted(set(ids))),
+]
 
 
 class Scope(BaseModel):
@@ -56,6 +61,7 @@ class BudgetCreate(BaseModel):
     enforcement: Enforcement = Enforcement.SOFT
     thresholds: Thresholds = Field(default_factory=lambda: list(DEFAULT_THRESHOLDS))
     enabled: bool = True
+    channel_ids: ChannelIds = Field(default_factory=list)
 
 
 class BudgetUpdate(BaseModel):
@@ -68,6 +74,7 @@ class BudgetUpdate(BaseModel):
     enforcement: Enforcement | None = None
     thresholds: Thresholds | None = None
     enabled: bool | None = None
+    channel_ids: ChannelIds | None = None
 
 
 class UsageOut(BaseModel):
@@ -87,6 +94,7 @@ class BudgetOut(BaseModel):
     enforcement: Enforcement
     thresholds: list[int]
     enabled: bool
+    channel_ids: list[str]
     created_at: datetime
     updated_at: datetime
     usage: UsageOut
@@ -103,6 +111,7 @@ class BudgetOut(BaseModel):
             enforcement=b.enforcement,
             thresholds=list(b.thresholds),
             enabled=b.enabled,
+            channel_ids=list(b.channel_ids),
             created_at=b.created_at,
             updated_at=b.updated_at,
             usage=UsageOut(
@@ -136,4 +145,7 @@ def apply_update(budget: Budget, update: BudgetUpdate, now: datetime) -> Budget:
         enabled=update.enabled if update.enabled is not None else budget.enabled,
         created_at=budget.created_at,
         updated_at=now,
+        channel_ids=(
+            tuple(update.channel_ids) if update.channel_ids is not None else budget.channel_ids
+        ),
     )
