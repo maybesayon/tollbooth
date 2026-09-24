@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-from tollbooth.api import admin_routes
+from tollbooth.api import admin_routes, proxy_routes
 from tollbooth.db import create_engine, run_migrations
 from tollbooth.pricing import load_pricing
 from tollbooth.repositories.sql import (
@@ -57,4 +57,5 @@ def create_app(
         return {"status": "ok"}
 
     app.include_router(admin_routes.router)
+    app.include_router(proxy_routes.router)
     return app
