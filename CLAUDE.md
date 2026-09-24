@@ -60,6 +60,18 @@ Budgets (`budgets.py`, `periods.py`):
   response). A failing budget check fails open (logged), never blocks traffic.
 - Call `budget_tracker.invalidate()` after any budget change.
 
+Alerts (`alerts.py`):
+- After each ledger write, `AlertManager.evaluate` checks the touched budgets' thresholds. An alert
+  is created at most once per (budget, period, threshold); the DB unique constraint is the source
+  of truth, so this holds across processes and restarts.
+- Delivery runs in background tasks with retries (1s, 5s, 25s); every attempt updates an
+  `alert_deliveries` row. Channel URLs and webhook signing secrets are Fernet-encrypted; only the
+  host (`url_hint`) is ever returned. Stored delivery errors are an HTTP status or exception type,
+  never a message (messages can contain the URL, which for Slack is the secret).
+- Webhooks: JSON `budget.threshold_crossed` events, signed as
+  `X-Tollbooth-Signature: v1=hex(HMAC-SHA256(secret, "{X-Tollbooth-Timestamp}.{body}"))`.
+  Slack channels get `{"text": ...}`.
+
 ## Conventions
 
 - Python 3.12, full type hints, small modules, no decorative comments or banner comments.
@@ -95,6 +107,6 @@ Budgets (`budgets.py`, `periods.py`):
   virtual keys, request ledger, streaming metering, pricing config, admin API, Docker, CI.
 - **Phase 2** (done): React + TypeScript + Vite dashboard in `dashboard/`: overview (spend tiles,
   stacked spend chart, breakdown), key and credential management, request log.
-- **Phase 3** (in progress): budgets and alerts (per team/key limits, soft/hard enforcement, notifications).
+- **Phase 3** (in progress): budgets and alerts (backend done; dashboard next) (per team/key limits, soft/hard enforcement, notifications).
 - **Phase 4**: Postgres repository implementation, multi-user admin accounts and roles.
 - **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).

@@ -21,6 +21,7 @@ router = APIRouter(prefix="/admin/budgets", tags=["budgets"], dependencies=[Depe
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_budget(body: BudgetCreate, state: State) -> BudgetOut:
     await _check_scope(body.scope, state)
+    await _check_channels(body.channel_ids, state)
     now = datetime.now(UTC)
     budget = Budget(
         id=new_id(),
@@ -34,6 +35,7 @@ async def create_budget(body: BudgetCreate, state: State) -> BudgetOut:
         enabled=body.enabled,
         created_at=now,
         updated_at=now,
+        channel_ids=tuple(body.channel_ids),
     )
     await state.budgets.create(budget)
     state.budget_tracker.invalidate()
@@ -57,6 +59,8 @@ async def update_budget(budget_id: str, body: BudgetUpdate, state: State) -> Bud
     budget = await _existing(budget_id, state)
     if body.scope is not None:
         await _check_scope(body.scope, state)
+    if body.channel_ids is not None:
+        await _check_channels(body.channel_ids, state)
     updated = apply_update(budget, body, datetime.now(UTC))
     if not await state.budgets.update(updated):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "budget not found")
@@ -82,3 +86,11 @@ async def _existing(budget_id: str, state: State) -> Budget:
 async def _check_scope(scope: Scope, state: State) -> None:
     if scope.type is BudgetScope.KEY and await state.keys.get(scope_value(scope) or "") is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "virtual key not found")
+
+
+async def _check_channels(channel_ids: list[str], state: State) -> None:
+    for channel_id in channel_ids:
+        if await state.channels.get(channel_id) is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, f"alert channel not found: {channel_id}"
+            )

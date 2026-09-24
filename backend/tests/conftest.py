@@ -5,6 +5,7 @@ from pathlib import Path
 import httpx
 import pytest
 from cryptography.fernet import Fernet
+from fake_webhooks import WebhookReceiver
 from fastapi import FastAPI
 from mock_providers import ANTHROPIC_REAL_KEY, OPENAI_REAL_KEY, MockProviders
 from pydantic import SecretStr
@@ -55,10 +56,22 @@ def upstream_transport(providers: MockProviders) -> httpx.AsyncBaseTransport:
 
 
 @pytest.fixture
+def webhooks() -> WebhookReceiver:
+    return WebhookReceiver()
+
+
+@pytest.fixture
 async def app(
-    settings: Settings, upstream_transport: httpx.AsyncBaseTransport | None
+    settings: Settings,
+    upstream_transport: httpx.AsyncBaseTransport,
+    webhooks: WebhookReceiver,
 ) -> AsyncIterator[FastAPI]:
-    app = create_app(settings, upstream_transport=upstream_transport)
+    app = create_app(
+        settings,
+        upstream_transport=upstream_transport,
+        notification_transport=webhooks.transport,
+        alert_retry_delays=(0.0, 0.0, 0.0),
+    )
     async with app.router.lifespan_context(app):
         yield app
 

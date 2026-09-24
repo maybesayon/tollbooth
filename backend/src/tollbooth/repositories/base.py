@@ -3,7 +3,10 @@ from datetime import datetime
 from typing import Protocol
 
 from tollbooth.domain import (
+    Alert,
     Budget,
+    Channel,
+    Delivery,
     GroupBy,
     Interval,
     LedgerEntry,
@@ -81,6 +84,38 @@ class BudgetRepository(Protocol):
         ...
 
     async def delete(self, budget_id: str) -> bool: ...
+
+
+class ChannelRepository(Protocol):
+    async def create(
+        self, channel: Channel, encrypted_url: str, encrypted_secret: str | None
+    ) -> None:
+        """Raises DuplicateNameError if the name is taken."""
+        ...
+
+    async def get(self, channel_id: str) -> Channel | None: ...
+
+    async def list_all(self) -> list[Channel]: ...
+
+    async def get_secrets(self, channel_id: str) -> tuple[str, str | None] | None:
+        """(encrypted_url, encrypted_secret) for delivery."""
+        ...
+
+    async def delete(self, channel_id: str) -> bool: ...
+
+
+class AlertRepository(Protocol):
+    async def create_if_absent(self, alert: Alert) -> bool:
+        """False when this budget already alerted for this period and threshold."""
+        ...
+
+    async def recent(self, limit: int = 50, budget_id: str | None = None) -> list[Alert]:
+        """Newest first, with deliveries."""
+        ...
+
+    async def save_delivery(self, delivery: Delivery) -> None:
+        """Insert or replace by id."""
+        ...
 
 
 class LedgerRepository(Protocol):

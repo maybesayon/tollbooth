@@ -3,10 +3,13 @@ from dataclasses import dataclass
 import httpx
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from tollbooth.alerts import AlertManager
 from tollbooth.budgets import BudgetTracker
 from tollbooth.pricing import PricingTable
 from tollbooth.repositories.base import (
+    AlertRepository,
     BudgetRepository,
+    ChannelRepository,
     CredentialRepository,
     KeyRepository,
     LedgerRepository,
@@ -27,3 +30,6 @@ class AppState:
     ledger: LedgerRepository
     budgets: BudgetRepository
     budget_tracker: BudgetTracker
+    channels: ChannelRepository
+    alerts: AlertRepository
+    alert_manager: AlertManager
