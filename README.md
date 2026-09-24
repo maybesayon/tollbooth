@@ -58,7 +58,7 @@ from anthropic import Anthropic
 client = Anthropic(base_url="http://localhost:8080", api_key="tb_...")
 ```
 
-Open the dashboard at http://localhost:8080/dashboard and sign in with the admin token: spend over time by team, model, or provider, key management, and a request log. Or ask the API directly:
+Open the dashboard at http://localhost:8080/dashboard and sign in with the admin token: spend over time by team, model, or provider, budgets and alerts, key management, and a request log. Or ask the API directly:
 
 ```bash
 curl -s "localhost:8080/admin/spend?group_by=team&start=2026-09-01" -H "$ADMIN"
@@ -196,7 +196,7 @@ Tests run against in-process fakes of both provider APIs, so they need no networ
 
 1. **Metering proxy** (done)
 2. **Web dashboard** (done)
-3. Budgets and alerts
+3. **Budgets and alerts** (done)
 4. Postgres and multi-user admin
 5. Model routing
 

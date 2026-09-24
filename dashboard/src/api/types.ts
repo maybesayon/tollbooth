@@ -107,3 +107,88 @@ export interface LedgerFilters {
   key_id?: string
   outcome?: Outcome
 }
+
+export type BudgetScopeType = 'global' | 'team' | 'key'
+export type BudgetPeriod = 'day' | 'week' | 'month'
+export type Enforcement = 'soft' | 'hard'
+
+export interface BudgetScope {
+  type: BudgetScopeType
+  value: string | null
+}
+
+export interface Budget {
+  id: string
+  name: string
+  scope: BudgetScope
+  period: BudgetPeriod
+  limit_usd: USD
+  enforcement: Enforcement
+  thresholds: number[]
+  enabled: boolean
+  channel_ids: string[]
+  created_at: string
+  updated_at: string
+  usage: {
+    period_start: string
+    period_end: string
+    spend_usd: USD
+    percent_used: number
+    exhausted: boolean
+  }
+}
+
+export interface BudgetInput {
+  name: string
+  scope: BudgetScope
+  period: BudgetPeriod
+  limit_usd: string
+  enforcement: Enforcement
+  thresholds: number[]
+  enabled: boolean
+  channel_ids: string[]
+}
+
+export type ChannelType = 'webhook' | 'slack'
+
+export interface AlertChannel {
+  id: string
+  name: string
+  type: ChannelType
+  url_hint: string
+  created_at: string
+}
+
+export interface CreatedAlertChannel extends AlertChannel {
+  signing_secret: string | null
+}
+
+export interface ChannelTestResult {
+  ok: boolean
+  status_code: number | null
+  error: string | null
+}
+
+export type DeliveryStatus = 'pending' | 'delivered' | 'failed' | 'skipped'
+
+export interface AlertDelivery {
+  channel_id: string
+  channel_name: string
+  status: DeliveryStatus
+  attempts: number
+  last_error: string | null
+  updated_at: string
+}
+
+export interface BudgetAlert {
+  id: string
+  budget_id: string
+  budget_name: string
+  threshold_percent: number
+  spend_usd: USD
+  limit_usd: USD
+  period_start: string
+  period_end: string
+  created_at: string
+  deliveries: AlertDelivery[]
+}

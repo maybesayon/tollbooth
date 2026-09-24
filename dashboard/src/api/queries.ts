@@ -6,6 +6,13 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import type {
+  AlertChannel,
+  Budget,
+  BudgetAlert,
+  BudgetInput,
+  ChannelTestResult,
+  ChannelType,
+  CreatedAlertChannel,
   CreatedKey,
   Credential,
   GroupBy,
@@ -105,5 +112,85 @@ export function useRequestLog(filters: LedgerFilters, limit = 50) {
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.next_cursor,
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useBudgets() {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['budgets'],
+    queryFn: ({ signal }) => api<Budget[]>('/admin/budgets', { signal }),
+    refetchInterval: 30_000,
+  })
+}
+
+export function useSaveBudget() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string | null; input: BudgetInput }) =>
+      id === null
+        ? api<Budget>('/admin/budgets', { method: 'POST', body: input })
+        : api<Budget>(`/admin/budgets/${encodeURIComponent(id)}`, { method: 'PATCH', body: input }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+  })
+}
+
+export function useDeleteBudget() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<null>(`/admin/budgets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+  })
+}
+
+export function useAlertChannels() {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['channels'],
+    queryFn: ({ signal }) => api<AlertChannel[]>('/admin/channels', { signal }),
+  })
+}
+
+export function useCreateAlertChannel() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; type: ChannelType; url: string }) =>
+      api<CreatedAlertChannel>('/admin/channels', { method: 'POST', body }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
+  })
+}
+
+export function useDeleteAlertChannel() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<null>(`/admin/channels/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['channels'] }),
+        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+      ]),
+  })
+}
+
+export function useTestAlertChannel() {
+  const api = useApi()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<ChannelTestResult>(`/admin/channels/${encodeURIComponent(id)}/test`, { method: 'POST' }),
+  })
+}
+
+export function useAlerts(limit = 25) {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['alerts', limit],
+    queryFn: ({ signal }) => api<BudgetAlert[]>('/admin/alerts', { params: { limit }, signal }),
+    refetchInterval: 30_000,
   })
 }
