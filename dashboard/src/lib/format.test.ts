@@ -1,6 +1,7 @@
 import {
   formatCompact,
   formatDateTimeUTC,
+  formatDateUTC,
   formatInt,
   formatMs,
   formatPercent,
@@ -48,6 +49,7 @@ describe('number helpers', () => {
 
   it('formats timestamps in UTC', () => {
     expect(formatDateTimeUTC('2026-09-01T12:15:03Z')).toBe('Sep 1, 12:15:03 PM UTC')
+    expect(formatDateUTC('2026-09-01T23:59:59Z')).toBe('Sep 1, 2026')
   })
 })
 

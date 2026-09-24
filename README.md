@@ -58,7 +58,7 @@ from anthropic import Anthropic
 client = Anthropic(base_url="http://localhost:8080", api_key="tb_...")
 ```
 
-See where the money went:
+Open the dashboard at http://localhost:8080/dashboard and sign in with the admin token: spend over time by team, model, or provider, key management, and a request log. Or ask the API directly:
 
 ```bash
 curl -s "localhost:8080/admin/spend?group_by=team&start=2026-09-01" -H "$ADMIN"
@@ -142,6 +142,10 @@ Settings are read from environment variables; see [`.env.example`](.env.example)
 ## Development
 
 ```bash
+cd dashboard && npm install && npm run dev   # http://localhost:5173/dashboard/, proxies to :8080
+```
+
+```bash
 cd backend
 uv sync
 uv run pytest
@@ -154,7 +158,7 @@ Tests run against in-process fakes of both provider APIs, so they need no networ
 ## Roadmap
 
 1. **Metering proxy** (done)
-2. Web dashboard
+2. **Web dashboard** (done)
 3. Budgets and alerts
 4. Postgres and multi-user admin
 5. Model routing

@@ -65,3 +65,14 @@ const dateTime = new Intl.DateTimeFormat('en-US', {
 export function formatDateTimeUTC(iso: string): string {
   return `${dateTime.format(new Date(iso))} UTC`
 }
+
+const date = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+})
+
+export function formatDateUTC(iso: string): string {
+  return date.format(new Date(iso))
+}
