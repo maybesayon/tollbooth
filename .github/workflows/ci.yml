@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -19,3 +20,18 @@ jobs:
       - run: uv run ruff check
       - run: uv run ruff format --check
       - run: uv run pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t tollbooth:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name tollbooth -p 8080:8080 \
+            -e TOLLBOOTH_ADMIN_TOKEN=ci-admin \
+            -e TOLLBOOTH_ENCRYPTION_KEY=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())") \
+            tollbooth:ci
+          for i in $(seq 1 30); do curl -fs localhost:8080/healthz && break; sleep 1; done
+          curl -fs -H "Authorization: Bearer ci-admin" localhost:8080/admin/spend
+          docker logs tollbooth
