@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -16,13 +17,27 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from tollbooth.db import budgets, ledger, provider_credentials, virtual_keys
+from tollbooth.db import (
+    alert_channels,
+    alert_deliveries,
+    budget_alerts,
+    budget_channels,
+    budgets,
+    ledger,
+    provider_credentials,
+    virtual_keys,
+)
 from tollbooth.domain import (
+    Alert,
     Budget,
     BudgetPeriod,
     BudgetScope,
+    Channel,
+    ChannelType,
+    Delivery,
+    DeliveryStatus,
     Enforcement,
     GroupBy,
     Interval,
@@ -245,16 +260,14 @@ class SqlBudgetRepository:
     async def create(self, budget: Budget) -> None:
         async with self._engine.begin() as conn:
             await conn.execute(insert(budgets).values(**_budget_values(budget)))
+            await _set_budget_channels(conn, budget)
 
     async def get(self, budget_id: str) -> Budget | None:
-        async with self._engine.connect() as conn:
-            row = (await conn.execute(select(budgets).where(budgets.c.id == budget_id))).first()
-        return _to_budget(row) if row else None
+        found = await self._select(budgets.c.id == budget_id)
+        return found[0] if found else None
 
     async def list_all(self) -> list[Budget]:
-        async with self._engine.connect() as conn:
-            rows = await conn.execute(select(budgets).order_by(budgets.c.created_at))
-        return [_to_budget(r) for r in rows]
+        return await self._select(None)
 
     async def update(self, budget: Budget) -> bool:
         values = _budget_values(budget)
@@ -263,12 +276,206 @@ class SqlBudgetRepository:
             result = await conn.execute(
                 update(budgets).where(budgets.c.id == budget.id).values(**values)
             )
-        return result.rowcount > 0
+            if result.rowcount == 0:
+                return False
+            await conn.execute(
+                delete(budget_channels).where(budget_channels.c.budget_id == budget.id)
+            )
+            await _set_budget_channels(conn, budget)
+        return True
+
+    async def _select(self, where: ColumnElement[bool] | None) -> list[Budget]:
+        query = select(budgets).order_by(budgets.c.created_at)
+        if where is not None:
+            query = query.where(where)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).all()
+            links = await conn.execute(
+                select(budget_channels.c.budget_id, budget_channels.c.channel_id).where(
+                    budget_channels.c.budget_id.in_([r.id for r in rows])
+                )
+            )
+        channels: dict[str, list[str]] = {}
+        for budget_id, channel_id in links:
+            channels.setdefault(budget_id, []).append(channel_id)
+        return [
+            replace(_to_budget(r), channel_ids=tuple(sorted(channels.get(r.id, [])))) for r in rows
+        ]
 
     async def delete(self, budget_id: str) -> bool:
         async with self._engine.begin() as conn:
             result = await conn.execute(delete(budgets).where(budgets.c.id == budget_id))
         return result.rowcount > 0
+
+
+async def _set_budget_channels(conn: AsyncConnection, budget: Budget) -> None:
+    if budget.channel_ids:
+        await conn.execute(
+            insert(budget_channels),
+            [{"budget_id": budget.id, "channel_id": c} for c in budget.channel_ids],
+        )
+
+
+class SqlChannelRepository:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+
+    async def create(
+        self, channel: Channel, encrypted_url: str, encrypted_secret: str | None
+    ) -> None:
+        try:
+            async with self._engine.begin() as conn:
+                await conn.execute(
+                    insert(alert_channels).values(
+                        id=channel.id,
+                        name=channel.name,
+                        type=channel.type.value,
+                        url_hint=channel.url_hint,
+                        encrypted_url=encrypted_url,
+                        encrypted_secret=encrypted_secret,
+                        created_at=channel.created_at,
+                    )
+                )
+        except IntegrityError as e:
+            raise DuplicateNameError(f"channel name already exists: {channel.name}") from e
+
+    async def get(self, channel_id: str) -> Channel | None:
+        async with self._engine.connect() as conn:
+            row = (
+                await conn.execute(_channel_columns().where(alert_channels.c.id == channel_id))
+            ).first()
+        return _to_channel(row) if row else None
+
+    async def list_all(self) -> list[Channel]:
+        async with self._engine.connect() as conn:
+            rows = await conn.execute(_channel_columns().order_by(alert_channels.c.created_at))
+        return [_to_channel(r) for r in rows]
+
+    async def get_secrets(self, channel_id: str) -> tuple[str, str | None] | None:
+        c = alert_channels.c
+        async with self._engine.connect() as conn:
+            row = (
+                await conn.execute(
+                    select(c.encrypted_url, c.encrypted_secret).where(c.id == channel_id)
+                )
+            ).first()
+        return (row.encrypted_url, row.encrypted_secret) if row else None
+
+    async def delete(self, channel_id: str) -> bool:
+        async with self._engine.begin() as conn:
+            result = await conn.execute(
+                delete(alert_channels).where(alert_channels.c.id == channel_id)
+            )
+        return result.rowcount > 0
+
+
+class SqlAlertRepository:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+
+    async def create_if_absent(self, alert: Alert) -> bool:
+        try:
+            async with self._engine.begin() as conn:
+                await conn.execute(
+                    insert(budget_alerts).values(
+                        id=alert.id,
+                        budget_id=alert.budget_id,
+                        budget_name=alert.budget_name,
+                        threshold=alert.threshold,
+                        period_start=alert.period_start,
+                        period_end=alert.period_end,
+                        spend_nanousd=alert.spend_nanousd,
+                        limit_nanousd=alert.limit_nanousd,
+                        created_at=alert.created_at,
+                    )
+                )
+        except IntegrityError:
+            return False
+        return True
+
+    async def recent(self, limit: int = 50, budget_id: str | None = None) -> list[Alert]:
+        query = select(budget_alerts).order_by(
+            budget_alerts.c.created_at.desc(), budget_alerts.c.id.desc()
+        )
+        if budget_id is not None:
+            query = query.where(budget_alerts.c.budget_id == budget_id)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query.limit(limit))).all()
+            delivery_rows = await conn.execute(
+                select(alert_deliveries)
+                .where(alert_deliveries.c.alert_id.in_([r.id for r in rows]))
+                .order_by(alert_deliveries.c.channel_name)
+            )
+        deliveries: dict[str, list[Delivery]] = {}
+        for row in delivery_rows:
+            delivery = _to_delivery(row)
+            deliveries.setdefault(delivery.alert_id, []).append(delivery)
+        return [replace(_to_alert(r), deliveries=tuple(deliveries.get(r.id, []))) for r in rows]
+
+    async def save_delivery(self, delivery: Delivery) -> None:
+        values = {
+            "id": delivery.id,
+            "alert_id": delivery.alert_id,
+            "channel_id": delivery.channel_id,
+            "channel_name": delivery.channel_name,
+            "status": delivery.status.value,
+            "attempts": delivery.attempts,
+            "last_error": delivery.last_error,
+            "updated_at": delivery.updated_at,
+        }
+        async with self._engine.begin() as conn:
+            result = await conn.execute(
+                update(alert_deliveries)
+                .where(alert_deliveries.c.id == delivery.id)
+                .values(**values)
+            )
+            if result.rowcount == 0:
+                await conn.execute(insert(alert_deliveries).values(**values))
+
+
+def _channel_columns() -> Select[Any]:
+    c = alert_channels.c
+    return select(c.id, c.name, c.type, c.url_hint, c.created_at)
+
+
+def _to_channel(row: Row[Any]) -> Channel:
+    m = row._mapping
+    return Channel(
+        id=m["id"],
+        name=m["name"],
+        type=ChannelType(m["type"]),
+        url_hint=m["url_hint"],
+        created_at=m["created_at"],
+    )
+
+
+def _to_alert(row: Row[Any]) -> Alert:
+    m = row._mapping
+    return Alert(
+        id=m["id"],
+        budget_id=m["budget_id"],
+        budget_name=m["budget_name"],
+        threshold=m["threshold"],
+        period_start=m["period_start"],
+        period_end=m["period_end"],
+        spend_nanousd=m["spend_nanousd"],
+        limit_nanousd=m["limit_nanousd"],
+        created_at=m["created_at"],
+    )
+
+
+def _to_delivery(row: Row[Any]) -> Delivery:
+    m = row._mapping
+    return Delivery(
+        id=m["id"],
+        alert_id=m["alert_id"],
+        channel_id=m["channel_id"],
+        channel_name=m["channel_name"],
+        status=DeliveryStatus(m["status"]),
+        attempts=m["attempts"],
+        last_error=m["last_error"],
+        updated_at=m["updated_at"],
+    )
 
 
 def _budget_values(budget: Budget) -> dict[str, Any]:

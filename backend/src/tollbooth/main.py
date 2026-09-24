@@ -6,13 +6,16 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-from tollbooth.api import admin_routes, budget_routes, ledger_routes, proxy_routes
+from tollbooth.alerts import AlertManager
+from tollbooth.api import admin_routes, alert_routes, budget_routes, ledger_routes, proxy_routes
 from tollbooth.budgets import BudgetTracker
 from tollbooth.dashboard import mount_dashboard
 from tollbooth.db import create_engine, run_migrations
 from tollbooth.pricing import load_pricing
 from tollbooth.repositories.sql import (
+    SqlAlertRepository,
     SqlBudgetRepository,
+    SqlChannelRepository,
     SqlCredentialRepository,
     SqlKeyRepository,
     SqlLedgerRepository,
@@ -25,8 +28,10 @@ from tollbooth.state import AppState
 def create_app(
     settings: Settings | None = None,
     upstream_transport: httpx.AsyncBaseTransport | None = None,
+    notification_transport: httpx.AsyncBaseTransport | None = None,
+    alert_retry_delays: tuple[float, ...] = (1.0, 5.0, 25.0),
 ) -> FastAPI:
-    """`upstream_transport` lets tests route provider traffic to in-process mock providers."""
+    """The transports let tests route provider and webhook traffic to in-process fakes."""
     resolved = settings or Settings()  # type: ignore[call-arg]
 
     @asynccontextmanager
@@ -39,24 +44,37 @@ def create_app(
         timeout = httpx.Timeout(
             resolved.upstream_read_timeout, connect=resolved.upstream_connect_timeout
         )
-        async with httpx.AsyncClient(timeout=timeout, transport=upstream_transport) as upstream:
+        async with (
+            httpx.AsyncClient(timeout=timeout, transport=upstream_transport) as upstream,
+            httpx.AsyncClient(timeout=10.0, transport=notification_transport) as notifier,
+        ):
+            secret_box = SecretBox(resolved.encryption_key.get_secret_value())
             ledger = SqlLedgerRepository(engine)
             budgets = SqlBudgetRepository(engine)
+            channels = SqlChannelRepository(engine)
+            alerts = SqlAlertRepository(engine)
+            alert_manager = AlertManager(
+                alerts, channels, secret_box, notifier, retry_delays=alert_retry_delays
+            )
             app.state.tollbooth = AppState(
                 settings=resolved,
                 pricing=pricing,
                 engine=engine,
                 upstream=upstream,
-                secret_box=SecretBox(resolved.encryption_key.get_secret_value()),
+                secret_box=secret_box,
                 credentials=SqlCredentialRepository(engine),
                 keys=SqlKeyRepository(engine),
                 ledger=ledger,
                 budgets=budgets,
                 budget_tracker=BudgetTracker(budgets, ledger),
+                channels=channels,
+                alerts=alerts,
+                alert_manager=alert_manager,
             )
             try:
                 yield
             finally:
+                await alert_manager.aclose()
                 await engine.dispose()
 
     app = FastAPI(title="Tollbooth", lifespan=lifespan)
@@ -68,6 +86,7 @@ def create_app(
     app.include_router(admin_routes.router)
     app.include_router(ledger_routes.router)
     app.include_router(budget_routes.router)
+    app.include_router(alert_routes.router)
     app.include_router(proxy_routes.router)
     if resolved.dashboard_dir is not None:
         mount_dashboard(app, resolved.dashboard_dir)
