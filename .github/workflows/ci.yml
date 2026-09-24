@@ -21,6 +21,24 @@ jobs:
       - run: uv run ruff format --check
       - run: uv run pytest
 
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -34,4 +52,5 @@ jobs:
             tollbooth:ci
           for i in $(seq 1 30); do curl -fs localhost:8080/healthz && break; sleep 1; done
           curl -fs -H "Authorization: Bearer ci-admin" localhost:8080/admin/spend
+          curl -fs localhost:8080/dashboard/ | grep -q '<div id="root">'
           docker logs tollbooth
