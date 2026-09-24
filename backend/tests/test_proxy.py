@@ -20,6 +20,7 @@ from mock_providers import (
 )
 
 from tollbooth.domain import LedgerEntry, Outcome, Provider, Usage
+from tollbooth.repositories.base import LedgerFilter
 from tollbooth.state import AppState
 
 SECRET_PROMPT = "SECRET-PROMPT-CONTENT"
@@ -76,7 +77,7 @@ def _read_all_files(directory: Path) -> bytes:
 
 
 async def _only_entry(state: AppState) -> LedgerEntry:
-    entries = await state.ledger.recent()
+    entries = await state.ledger.page(LedgerFilter())
     assert len(entries) == 1
     return entries[0]
 
@@ -358,7 +359,7 @@ async def test_invalid_virtual_key(
     assert error["type"] == "authentication_error"
     if path == "/v1/messages":
         assert body["type"] == "error"
-    assert await state.ledger.recent() == []
+    assert await state.ledger.page(LedgerFilter()) == []
 
 
 async def test_revoked_key_is_rejected(
@@ -442,7 +443,7 @@ async def test_no_prompt_or_response_content_is_persisted(
         json={**ANTHROPIC_BODY, "stream": True},
         headers={**anthropic_auth, "x-mock-scenario": "stream_error"},
     )
-    assert len(await state.ledger.recent()) == 7
+    assert len(await state.ledger.page(LedgerFilter())) == 7
 
     await state.engine.dispose()
     stored = _read_all_files(tmp_path)

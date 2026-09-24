@@ -112,7 +112,11 @@ All routes require `Authorization: Bearer $TOLLBOOTH_ADMIN_TOKEN`. Interactive d
 | `GET` | `/admin/keys` | List keys (`?team=`, `?include_revoked=true`) |
 | `GET` | `/admin/keys/{id}` | Get one key |
 | `POST` | `/admin/keys/{id}/revoke` | Revoke a key. Its ledger history is kept. |
-| `GET` | `/admin/spend` | Spend report: `group_by=team\|model\|provider\|key`, `start` (inclusive), `end` (exclusive), `team`, `provider`, `model`, `key_id` |
+| `GET` | `/admin/spend` | Spend report: `group_by=team\|model\|provider\|key`, plus the ledger filters below |
+| `GET` | `/admin/spend/timeseries` | Spend per `interval=day\|hour` bucket (UTC), optionally split by `group_by`; `start` and `end` required |
+| `GET` | `/admin/requests` | Ledger entries, newest first, metadata only. Paged with `limit` and `cursor` (`next_cursor` from the previous page). |
+
+Ledger filters, accepted by all three reporting routes: `start` (inclusive), `end` (exclusive), `team`, `provider`, `model`, `key_id`, `outcome`.
 
 ## Configuration
 
@@ -128,6 +132,7 @@ Settings are read from environment variables; see [`.env.example`](.env.example)
 | `TOLLBOOTH_OPENAI_BASE_URL` | `https://api.openai.com` | |
 | `TOLLBOOTH_ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | |
 | `TOLLBOOTH_UPSTREAM_CONNECT_TIMEOUT` / `_READ_TIMEOUT` | `10` / `600` | Seconds |
+| `TOLLBOOTH_DASHBOARD_DIR` | unset | Built dashboard to serve at `/dashboard` |
 | `TOLLBOOTH_LOG_LEVEL` | `INFO` | |
 
 ## Pricing

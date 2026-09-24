@@ -17,4 +17,5 @@ class Settings(BaseSettings):
     anthropic_base_url: str = "https://api.anthropic.com"
     upstream_connect_timeout: float = 10.0
     upstream_read_timeout: float = 600.0
+    dashboard_dir: Path | None = None
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"

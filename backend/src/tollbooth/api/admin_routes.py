@@ -1,6 +1,4 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from tollbooth.api.schemas import (
     CredentialCreate,
@@ -8,11 +6,9 @@ from tollbooth.api.schemas import (
     KeyCreate,
     KeyCreated,
     KeyOut,
-    SpendQuery,
-    SpendReport,
 )
 from tollbooth.deps import State, require_admin
-from tollbooth.repositories.base import DuplicateNameError, SpendFilter
+from tollbooth.repositories.base import DuplicateNameError
 from tollbooth.security import generate_virtual_key
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -70,21 +66,3 @@ async def revoke_key(key_id: str, state: State) -> KeyOut:
     if key is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "key not found")
     return KeyOut.of(key)
-
-
-@router.get("/spend")
-async def spend(query: Annotated[SpendQuery, Query()], state: State) -> SpendReport:
-    if query.start and query.end and query.start >= query.end:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "start must be before end")
-    rows = await state.ledger.spend(
-        query.group_by,
-        SpendFilter(
-            start=query.start,
-            end=query.end,
-            team=query.team,
-            provider=query.provider,
-            model=query.model,
-            virtual_key_id=query.key_id,
-        ),
-    )
-    return SpendReport.of(query, rows)
