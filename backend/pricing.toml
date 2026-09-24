@@ -1,0 +1,200 @@
+# USD per 1M tokens. Edit and restart Tollbooth to apply; past ledger rows keep the cost they were
+# recorded with. Rates must be multiples of 0.001.
+#
+# Fields: input, output (required); cache_read, cache_write, cache_write_1h (optional, fall back to
+# input, and cache_write_1h falls back to cache_write); aliases (optional list of extra model names).
+# Dated snapshots such as "gpt-4o-2024-08-06" or "claude-x-20250101" resolve to the undated entry.
+#
+# Sources, checked 2026-09-24:
+#   https://developers.openai.com/api/docs/pricing (Standard tier)
+#   https://platform.claude.com/docs/en/about-claude/pricing
+# Long-context surcharges and batch/priority/flex tiers are not modeled yet.
+
+[openai."gpt-5.6-sol"]
+input = 4.00
+cache_read = 0.40
+output = 20.00
+
+[openai."gpt-5.6-terra"]
+input = 2.00
+cache_read = 0.20
+output = 12.00
+
+[openai."gpt-5.6-luna"]
+input = 0.20
+cache_read = 0.02
+output = 1.20
+
+[openai."gpt-5.5"]
+input = 5.00
+cache_read = 0.50
+output = 30.00
+
+[openai."gpt-5.5-pro"]
+input = 30.00
+output = 180.00
+
+[openai."gpt-5.4"]
+input = 2.50
+cache_read = 0.25
+output = 15.00
+
+[openai."gpt-5.4-mini"]
+input = 0.75
+cache_read = 0.075
+output = 4.50
+
+[openai."gpt-5.4-nano"]
+input = 0.20
+cache_read = 0.02
+output = 1.25
+
+[openai."gpt-5.4-pro"]
+input = 30.00
+output = 180.00
+
+[openai."gpt-5.2"]
+input = 1.75
+cache_read = 0.175
+output = 14.00
+
+[openai."gpt-5.1"]
+input = 1.25
+cache_read = 0.125
+output = 10.00
+
+[openai."gpt-5"]
+input = 1.25
+cache_read = 0.125
+output = 10.00
+
+[openai."gpt-5-mini"]
+input = 0.25
+cache_read = 0.025
+output = 2.00
+
+[openai."gpt-5-nano"]
+input = 0.05
+cache_read = 0.005
+output = 0.40
+
+[openai."gpt-4.1"]
+input = 2.00
+cache_read = 0.50
+output = 8.00
+
+[openai."gpt-4.1-mini"]
+input = 0.40
+cache_read = 0.10
+output = 1.60
+
+[openai."gpt-4.1-nano"]
+input = 0.10
+cache_read = 0.025
+output = 0.40
+
+[openai."gpt-4o"]
+input = 2.50
+cache_read = 1.25
+output = 10.00
+
+[openai."gpt-4o-mini"]
+input = 0.15
+cache_read = 0.075
+output = 0.60
+
+[openai.o1]
+input = 15.00
+cache_read = 7.50
+output = 60.00
+
+[openai.o3]
+input = 2.00
+cache_read = 0.50
+output = 8.00
+
+[openai."o3-pro"]
+input = 20.00
+output = 80.00
+
+[openai."o3-mini"]
+input = 1.10
+cache_read = 0.55
+output = 4.40
+
+[openai."o4-mini"]
+input = 1.10
+cache_read = 0.275
+output = 4.40
+
+# Anthropic cache writes: 5-minute TTL = 1.25x input, 1-hour TTL = 2x input.
+
+[anthropic."claude-fable-5-1"]
+input = 10.00
+output = 50.00
+cache_read = 0.25
+cache_write = 12.50
+cache_write_1h = 20.00
+
+[anthropic."claude-fable-5"]
+input = 10.00
+output = 50.00
+cache_read = 1.00
+cache_write = 12.50
+cache_write_1h = 20.00
+
+[anthropic."claude-opus-5-5"]
+input = 4.00
+output = 20.00
+cache_read = 0.20
+cache_write = 5.00
+cache_write_1h = 8.00
+
+[anthropic."claude-opus-5"]
+input = 5.00
+output = 25.00
+cache_read = 0.50
+cache_write = 6.25
+cache_write_1h = 10.00
+
+[anthropic."claude-opus-4-8"]
+input = 5.00
+output = 25.00
+cache_read = 0.50
+cache_write = 6.25
+cache_write_1h = 10.00
+
+[anthropic."claude-opus-4-7"]
+input = 5.00
+output = 25.00
+cache_read = 0.50
+cache_write = 6.25
+cache_write_1h = 10.00
+
+[anthropic."claude-opus-4-6"]
+input = 5.00
+output = 25.00
+cache_read = 0.50
+cache_write = 6.25
+cache_write_1h = 10.00
+
+[anthropic."claude-sonnet-5"]
+input = 2.00
+output = 10.00
+cache_read = 0.20
+cache_write = 2.50
+cache_write_1h = 4.00
+
+[anthropic."claude-sonnet-4-6"]
+input = 3.00
+output = 15.00
+cache_read = 0.30
+cache_write = 3.75
+cache_write_1h = 6.00
+
+[anthropic."claude-haiku-4-5"]
+input = 1.00
+output = 5.00
+cache_read = 0.10
+cache_write = 1.25
+cache_write_1h = 2.00
