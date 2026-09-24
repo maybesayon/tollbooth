@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-from tollbooth.api import admin_routes, proxy_routes
+from tollbooth.api import admin_routes, ledger_routes, proxy_routes
+from tollbooth.dashboard import mount_dashboard
 from tollbooth.db import create_engine, run_migrations
 from tollbooth.pricing import load_pricing
 from tollbooth.repositories.sql import (
@@ -24,10 +25,10 @@ def create_app(
     upstream_transport: httpx.AsyncBaseTransport | None = None,
 ) -> FastAPI:
     """`upstream_transport` lets tests route provider traffic to in-process mock providers."""
+    resolved = settings or Settings()  # type: ignore[call-arg]
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        resolved = settings or Settings()  # type: ignore[call-arg]
         _configure_logging(resolved.log_level)
         pricing = load_pricing(resolved.pricing_file)
         if resolved.auto_migrate:
@@ -59,7 +60,10 @@ def create_app(
         return {"status": "ok"}
 
     app.include_router(admin_routes.router)
+    app.include_router(ledger_routes.router)
     app.include_router(proxy_routes.router)
+    if resolved.dashboard_dir is not None:
+        mount_dashboard(app, resolved.dashboard_dir)
     return app
 
 

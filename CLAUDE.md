@@ -29,7 +29,8 @@ backend/src/tollbooth/
   repositories/      Protocol interfaces (base.py) + SQLAlchemy Core implementation (sql.py)
   providers/         per-provider logic: upstream URL, auth headers, usage extraction, stream parsing
   proxy/             forwarding, incremental SSE parsing, metering + ledger write
-  api/               FastAPI routers: proxy routes and /admin routes
+  api/               FastAPI routers: proxy, /admin keys+credentials, /admin ledger reporting
+  dashboard.py       serves the built dashboard at /dashboard (SPA fallback to index.html)
   migrations/        Alembic migrations (packaged so the app can migrate on startup)
 backend/pricing.toml per-model prices, editable without code changes
 ```
