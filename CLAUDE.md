@@ -66,11 +66,25 @@ Streaming usage:
 - Docker: build context is the repo root; the image runs `uvicorn tollbooth.main:create_app --factory`
   as a non-root user, with SQLite in the `/app/data` volume and `pricing.toml` mounted read-only.
 
+## Dashboard (`dashboard/`)
+
+- React 19 + TypeScript (strict) + Vite, TanStack Query for server state, React Router, Recharts.
+- Served by the backend at `/dashboard` (`TOLLBOOTH_DASHBOARD_DIR`); `npm run dev` proxies `/admin`.
+- Auth is the admin token in `sessionStorage`; any 401 signs out. Phase 4 replaces this with users.
+- USD stays a decimal string from the API until display (`lib/format.ts`); never do money math in
+  floats beyond chart heights.
+- Colors are CSS tokens in `index.css` (light + dark). Chart series use `--series-1..7` in fixed
+  order via `ColorRegistry` (color follows the entity), overflow folds into "Other". Status colors
+  are reserved for badges, which always pair color with an icon and label.
+- Filters live in the URL search params. Tests use `test/fakeApi.ts` (stubbed fetch, per-path routes).
+- Commands (in `dashboard/`): `npm run lint`, `npm run format`, `npm run typecheck`, `npm test`.
+
 ## Roadmap
 
-- **Phase 1** (current): transparent proxy for OpenAI chat completions and Anthropic messages,
+- **Phase 1** (done): transparent proxy for OpenAI chat completions and Anthropic messages,
   virtual keys, request ledger, streaming metering, pricing config, admin API, Docker, CI.
-- **Phase 2**: React + TypeScript + Vite dashboard in `dashboard/` (spend over time, per team/model/key).
+- **Phase 2** (done): React + TypeScript + Vite dashboard in `dashboard/`: overview (spend tiles,
+  stacked spend chart, breakdown), key and credential management, request log.
 - **Phase 3**: budgets and alerts (per team/key limits, soft/hard enforcement, notifications).
 - **Phase 4**: Postgres repository implementation, multi-user admin accounts and roles.
 - **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).

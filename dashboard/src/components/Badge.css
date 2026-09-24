@@ -1,0 +1,46 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.badge-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.badge-good .badge-icon {
+  background: var(--status-good);
+}
+
+.badge-warning .badge-icon {
+  background: var(--status-warning);
+  color: #0b0b0b;
+}
+
+.badge-serious .badge-icon {
+  background: var(--status-serious);
+  color: #0b0b0b;
+}
+
+.badge-critical .badge-icon {
+  background: var(--status-critical);
+}
+
+.badge-neutral .badge-icon {
+  background: var(--text-muted);
+}
