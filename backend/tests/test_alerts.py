@@ -280,6 +280,38 @@ class TestAlerting:
         assert (deliveries["broken"]["status"], deliveries["broken"]["attempts"]) == ("failed", 4)
         assert deliveries["broken"]["last_error"] == "HTTP 500"
 
+    async def test_simultaneous_crossings_send_only_the_highest(
+        self,
+        client: httpx.AsyncClient,
+        admin_headers: dict[str, str],
+        make_key: MakeKey,
+        state: AppState,
+        webhooks: WebhookReceiver,
+    ) -> None:
+        channel = await _channel(client, admin_headers)
+        await _budget(
+            client,
+            admin_headers,
+            limit_usd="0.0001",
+            thresholds=[50, 80, 100],
+            enforcement="soft",
+            channel_ids=[channel["id"]],
+        )
+        key = await make_key(Provider.OPENAI)
+        await client.post(
+            "/v1/chat/completions", json=OPENAI_BODY, headers={"Authorization": f"Bearer {key}"}
+        )
+        await state.alert_manager.drain()
+
+        assert [r.json["threshold_percent"] for r in webhooks.received] == [100]
+        alerts = (await client.get("/admin/alerts", headers=admin_headers)).json()
+        statuses = {a["threshold_percent"]: a["deliveries"][0] for a in alerts}
+        assert statuses[100]["status"] == "delivered"
+        for lower in (50, 80):
+            assert statuses[lower]["status"] == "skipped"
+            assert statuses[lower]["last_error"] == "superseded by the 100% alert"
+            assert statuses[lower]["attempts"] == 0
+
     async def test_alert_history_survives_budget_deletion(
         self,
         client: httpx.AsyncClient,

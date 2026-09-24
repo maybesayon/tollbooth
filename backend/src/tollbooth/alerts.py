@@ -81,9 +81,15 @@ class AlertManager:
         self._tasks: set[asyncio.Task[None]] = set()
 
     async def evaluate(self, usages: Sequence[BudgetUsage]) -> list[Alert]:
-        """Create alerts for newly crossed thresholds and schedule their delivery."""
+        """Create alerts for newly crossed thresholds and schedule their delivery.
+
+        When one evaluation crosses several thresholds of a budget at once (a budget created
+        mid-period, or one expensive request), only the highest is sent; the others are recorded
+        with skipped deliveries so channels get one message, not a burst.
+        """
         created: list[Alert] = []
         for usage in usages:
+            fresh: list[Alert] = []
             for threshold in usage.budget.thresholds:
                 marker = (usage.budget.id, usage.period_start, threshold)
                 if marker in self._fired or not usage.crossed(threshold):
@@ -106,8 +112,14 @@ class AlertManager:
                     logger.info(
                         "budget %s crossed %s%% (alert %s)", alert.budget_id, threshold, alert.id
                     )
-                    created.append(alert)
-                    self._spawn(self._deliver_all(alert, usage.budget))
+                    fresh.append(alert)
+            if fresh:
+                highest = max(fresh, key=lambda a: a.threshold)
+                for alert in fresh:
+                    if alert is not highest:
+                        await self._skip(alert, usage.budget, superseded_by=highest.threshold)
+                self._spawn(self._deliver_all(highest, usage.budget))
+                created.extend(fresh)
         return created
 
     async def send_test(self, channel: Channel) -> SendResult:
@@ -147,6 +159,24 @@ class AlertManager:
                 await self._deliver(alert, budget, channel)
             except Exception:
                 logger.exception("delivery of alert %s to %s crashed", alert.id, channel.id)
+
+    async def _skip(self, alert: Alert, budget: Budget, superseded_by: int) -> None:
+        for channel_id in budget.channel_ids:
+            channel = await self._channels.get(channel_id)
+            if channel is None:
+                continue
+            await self._alerts.save_delivery(
+                Delivery(
+                    id=new_id(),
+                    alert_id=alert.id,
+                    channel_id=channel.id,
+                    channel_name=channel.name,
+                    status=DeliveryStatus.SKIPPED,
+                    attempts=0,
+                    last_error=f"superseded by the {superseded_by}% alert",
+                    updated_at=self._clock(),
+                )
+            )
 
     async def _deliver(self, alert: Alert, budget: Budget, channel: Channel) -> None:
         delivery = Delivery(

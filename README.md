@@ -130,7 +130,7 @@ Ledger filters, accepted by all three reporting routes: `start` (inclusive), `en
 
 ## Budget alerts
 
-When a budget's spend crosses one of its thresholds (default 50%, 80%, 100%), Tollbooth sends one alert per threshold per period to the budget's channels, retrying failed deliveries up to three times. Slack channels get a readable message. Webhook channels get a JSON event:
+When a budget's spend crosses one of its thresholds (default 50%, 80%, 100%), Tollbooth sends one alert per threshold per period to the budget's channels, retrying failed deliveries up to three times. If several thresholds are crossed at once, only the highest is sent; the others are recorded as skipped. Slack channels get a readable message. Webhook channels get a JSON event:
 
 ```json
 {

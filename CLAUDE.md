@@ -63,7 +63,8 @@ Budgets (`budgets.py`, `periods.py`):
 Alerts (`alerts.py`):
 - After each ledger write, `AlertManager.evaluate` checks the touched budgets' thresholds. An alert
   is created at most once per (budget, period, threshold); the DB unique constraint is the source
-  of truth, so this holds across processes and restarts.
+  of truth, so this holds across processes and restarts. Thresholds crossed together are recorded
+  but only the highest is delivered (the rest get `skipped` deliveries).
 - Delivery runs in background tasks with retries (1s, 5s, 25s); every attempt updates an
   `alert_deliveries` row. Channel URLs and webhook signing secrets are Fernet-encrypted; only the
   host (`url_hint`) is ever returned. Stored delivery errors are an HTTP status or exception type,

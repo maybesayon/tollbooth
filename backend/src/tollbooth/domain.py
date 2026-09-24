@@ -176,6 +176,7 @@ class DeliveryStatus(StrEnum):
     PENDING = "pending"
     DELIVERED = "delivered"
     FAILED = "failed"
+    SKIPPED = "skipped"
 
 
 @dataclass(frozen=True)
