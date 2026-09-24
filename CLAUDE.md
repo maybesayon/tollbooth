@@ -25,11 +25,12 @@ backend/src/tollbooth/
   pricing.py         pricing.toml loading and model resolution
   cost.py            pure Decimal cost math
   domain.py          dataclasses shared across layers
+  db.py              SQLAlchemy Core tables, engine factory, migration runner
   repositories/      Protocol interfaces (base.py) + SQLAlchemy Core implementation (sql.py)
   providers/         per-provider logic: upstream URL, auth headers, usage extraction, stream parsing
   proxy/             forwarding, incremental SSE parsing, metering + ledger write
   api/               FastAPI routers: proxy routes and /admin routes
-backend/migrations/  Alembic migrations
+  migrations/        Alembic migrations (packaged so the app can migrate on startup)
 backend/pricing.toml per-model prices, editable without code changes
 ```
 
@@ -49,6 +50,8 @@ Streaming usage:
 - Storage is accessed only through the repository Protocols in `repositories/base.py`, so the
   Postgres implementation in Phase 4 is a driver/URL change plus any dialect fixes.
 - Settings come only from environment variables (see `.env.example`).
+- Schema changes: edit `db.py`, then autogenerate a migration and review it. Migrations use plain
+  SQLAlchemy types (never import from `tollbooth`). `test_migrations_match_metadata` catches drift.
 - Tests use in-process mock providers (ASGI apps) injected into the upstream httpx client. No real
   API keys, no network. Cost assertions compare exact `Decimal` values.
 - Commands (run in `backend/`): `uv run ruff check`, `uv run ruff format`, `uv run pytest`.
