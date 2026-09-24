@@ -1,6 +1,8 @@
 import json
 import logging
+import math
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 
 import anyio
@@ -9,6 +11,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
+from tollbooth.budgets import BudgetUsage
 from tollbooth.domain import Outcome, Provider, VirtualKey
 from tollbooth.providers.base import ProviderAdapter, StreamMeter
 from tollbooth.proxy.headers import client_response_headers, upstream_request_headers
@@ -46,6 +49,16 @@ async def proxy(request: Request, adapter: ProviderAdapter, state: AppState) -> 
         requested_model=model if isinstance(model, str) and model else UNKNOWN_MODEL,
         streamed=streaming,
     )
+    try:
+        blocked = await state.budget_tracker.blocking(key)
+    except Exception:
+        logger.exception("budget check failed for key %s; allowing the request", key.id)
+        blocked = None
+    if blocked is not None:
+        await meter.record(
+            status_code=429, outcome=Outcome.BUDGET_EXCEEDED, error_type="budget_exceeded"
+        )
+        return _budget_exceeded(adapter, blocked)
     try:
         return await _forward(request, raw, body, adapter, state, meter)
     except Exception:
@@ -228,6 +241,19 @@ def _upstream_url(state: AppState, adapter: ProviderAdapter, request: Request) -
     }[adapter.provider]
     query = f"?{request.url.query}" if request.url.query else ""
     return f"{base.rstrip('/')}{adapter.path}{query}"
+
+
+def _budget_exceeded(adapter: ProviderAdapter, usage: BudgetUsage) -> Response:
+    budget = usage.budget
+    reset = usage.period_end.isoformat().replace("+00:00", "Z")
+    message = (
+        f"Tollbooth budget '{budget.name}' is exhausted for this {budget.period.value}. "
+        f"Requests resume at {reset}."
+    )
+    retry_after = max(1, math.ceil((usage.period_end - datetime.now(UTC)).total_seconds()))
+    response = _error(adapter, 429, "budget_exceeded", message)
+    response.headers["retry-after"] = str(retry_after)
+    return response
 
 
 def _error(adapter: ProviderAdapter, status_code: int, error_type: str, message: str) -> Response:

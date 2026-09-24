@@ -50,6 +50,16 @@ Streaming usage:
 - A client disconnect cancels the relay; the ledger write is shielded from cancellation and the
   row is recorded with outcome `client_disconnected` and whatever usage had arrived.
 
+Budgets (`budgets.py`, `periods.py`):
+- A budget limits spend per UTC calendar period (day, week from Monday, month) for everything, a
+  team, or one virtual key. `soft` budgets only alert; `hard` budgets make the proxy answer 429
+  (`budget_exceeded`, provider error shape, `Retry-After` = seconds to period end) and ledger the
+  refusal with outcome `budget_exceeded`.
+- `BudgetTracker` caches budget list and per-period spend for `ttl_seconds` and adds each recorded
+  cost in between. Hard limits can be overshot by in-flight requests (cost is known only after the
+  response). A failing budget check fails open (logged), never blocks traffic.
+- Call `budget_tracker.invalidate()` after any budget change.
+
 ## Conventions
 
 - Python 3.12, full type hints, small modules, no decorative comments or banner comments.
@@ -85,6 +95,6 @@ Streaming usage:
   virtual keys, request ledger, streaming metering, pricing config, admin API, Docker, CI.
 - **Phase 2** (done): React + TypeScript + Vite dashboard in `dashboard/`: overview (spend tiles,
   stacked spend chart, breakdown), key and credential management, request log.
-- **Phase 3**: budgets and alerts (per team/key limits, soft/hard enforcement, notifications).
+- **Phase 3** (in progress): budgets and alerts (per team/key limits, soft/hard enforcement, notifications).
 - **Phase 4**: Postgres repository implementation, multi-user admin accounts and roles.
 - **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).

@@ -13,4 +13,5 @@ export const OUTCOMES: Record<Outcome, { tone: Tone; label: string }> = {
   upstream_unreachable: { tone: 'critical', label: 'Unreachable' },
   client_disconnected: { tone: 'warning', label: 'Client left' },
   proxy_error: { tone: 'serious', label: 'Proxy error' },
+  budget_exceeded: { tone: 'warning', label: 'Over budget' },
 }

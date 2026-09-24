@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -7,6 +8,7 @@ from sqlalchemy import (
     Select,
     and_,
     case,
+    delete,
     func,
     insert,
     or_,
@@ -16,8 +18,12 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from tollbooth.db import ledger, provider_credentials, virtual_keys
+from tollbooth.db import budgets, ledger, provider_credentials, virtual_keys
 from tollbooth.domain import (
+    Budget,
+    BudgetPeriod,
+    BudgetScope,
+    Enforcement,
     GroupBy,
     Interval,
     LedgerEntry,
@@ -207,6 +213,11 @@ class SqlLedgerRepository:
             rows = await conn.execute(_filtered(query, ledger_filter))
         return [SpendRow(group=r.group, **_metric_values(r)) for r in rows]
 
+    async def total_cost(self, ledger_filter: LedgerFilter) -> int:
+        query = _filtered(select(_COST), ledger_filter)
+        async with self._engine.connect() as conn:
+            return int((await conn.execute(query)).scalar_one())
+
     async def timeseries(
         self, interval: Interval, group_by: GroupBy | None, ledger_filter: LedgerFilter
     ) -> list[SpendPoint]:
@@ -225,6 +236,72 @@ class SqlLedgerRepository:
             )
             for r in rows
         ]
+
+
+class SqlBudgetRepository:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+
+    async def create(self, budget: Budget) -> None:
+        async with self._engine.begin() as conn:
+            await conn.execute(insert(budgets).values(**_budget_values(budget)))
+
+    async def get(self, budget_id: str) -> Budget | None:
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(select(budgets).where(budgets.c.id == budget_id))).first()
+        return _to_budget(row) if row else None
+
+    async def list_all(self) -> list[Budget]:
+        async with self._engine.connect() as conn:
+            rows = await conn.execute(select(budgets).order_by(budgets.c.created_at))
+        return [_to_budget(r) for r in rows]
+
+    async def update(self, budget: Budget) -> bool:
+        values = _budget_values(budget)
+        del values["id"], values["created_at"]
+        async with self._engine.begin() as conn:
+            result = await conn.execute(
+                update(budgets).where(budgets.c.id == budget.id).values(**values)
+            )
+        return result.rowcount > 0
+
+    async def delete(self, budget_id: str) -> bool:
+        async with self._engine.begin() as conn:
+            result = await conn.execute(delete(budgets).where(budgets.c.id == budget_id))
+        return result.rowcount > 0
+
+
+def _budget_values(budget: Budget) -> dict[str, Any]:
+    return {
+        "id": budget.id,
+        "name": budget.name,
+        "scope": budget.scope.value,
+        "scope_value": budget.scope_value,
+        "period": budget.period.value,
+        "limit_nanousd": budget.limit_nanousd,
+        "enforcement": budget.enforcement.value,
+        "thresholds": json.dumps(list(budget.thresholds)),
+        "enabled": budget.enabled,
+        "created_at": budget.created_at,
+        "updated_at": budget.updated_at,
+    }
+
+
+def _to_budget(row: Row[Any]) -> Budget:
+    m = row._mapping
+    return Budget(
+        id=m["id"],
+        name=m["name"],
+        scope=BudgetScope(m["scope"]),
+        scope_value=m["scope_value"],
+        period=BudgetPeriod(m["period"]),
+        limit_nanousd=m["limit_nanousd"],
+        enforcement=Enforcement(m["enforcement"]),
+        thresholds=tuple(json.loads(m["thresholds"])),
+        enabled=m["enabled"],
+        created_at=m["created_at"],
+        updated_at=m["updated_at"],
+    )
 
 
 _COST = func.coalesce(func.sum(ledger.c.cost_nanousd), 0)

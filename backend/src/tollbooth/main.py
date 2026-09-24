@@ -6,11 +6,13 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-from tollbooth.api import admin_routes, ledger_routes, proxy_routes
+from tollbooth.api import admin_routes, budget_routes, ledger_routes, proxy_routes
+from tollbooth.budgets import BudgetTracker
 from tollbooth.dashboard import mount_dashboard
 from tollbooth.db import create_engine, run_migrations
 from tollbooth.pricing import load_pricing
 from tollbooth.repositories.sql import (
+    SqlBudgetRepository,
     SqlCredentialRepository,
     SqlKeyRepository,
     SqlLedgerRepository,
@@ -38,6 +40,8 @@ def create_app(
             resolved.upstream_read_timeout, connect=resolved.upstream_connect_timeout
         )
         async with httpx.AsyncClient(timeout=timeout, transport=upstream_transport) as upstream:
+            ledger = SqlLedgerRepository(engine)
+            budgets = SqlBudgetRepository(engine)
             app.state.tollbooth = AppState(
                 settings=resolved,
                 pricing=pricing,
@@ -46,7 +50,9 @@ def create_app(
                 secret_box=SecretBox(resolved.encryption_key.get_secret_value()),
                 credentials=SqlCredentialRepository(engine),
                 keys=SqlKeyRepository(engine),
-                ledger=SqlLedgerRepository(engine),
+                ledger=ledger,
+                budgets=budgets,
+                budget_tracker=BudgetTracker(budgets, ledger),
             )
             try:
                 yield
@@ -61,6 +67,7 @@ def create_app(
 
     app.include_router(admin_routes.router)
     app.include_router(ledger_routes.router)
+    app.include_router(budget_routes.router)
     app.include_router(proxy_routes.router)
     if resolved.dashboard_dir is not None:
         mount_dashboard(app, resolved.dashboard_dir)

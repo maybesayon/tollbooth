@@ -14,6 +14,7 @@ class Outcome(StrEnum):
     UPSTREAM_UNREACHABLE = "upstream_unreachable"
     CLIENT_DISCONNECTED = "client_disconnected"
     PROXY_ERROR = "proxy_error"
+    BUDGET_EXCEEDED = "budget_exceeded"
 
 
 class GroupBy(StrEnum):
@@ -109,3 +110,46 @@ class SpendPoint(SpendMetrics):
 
     bucket: datetime
     group: str | None
+
+
+class BudgetScope(StrEnum):
+    GLOBAL = "global"
+    TEAM = "team"
+    KEY = "key"
+
+
+class BudgetPeriod(StrEnum):
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+
+
+class Enforcement(StrEnum):
+    SOFT = "soft"
+    HARD = "hard"
+
+
+@dataclass(frozen=True)
+class Budget:
+    """A spend limit per calendar period (UTC) for everything, one team, or one virtual key."""
+
+    id: str
+    name: str
+    scope: BudgetScope
+    scope_value: str | None
+    period: BudgetPeriod
+    limit_nanousd: int
+    enforcement: Enforcement
+    thresholds: tuple[int, ...]
+    enabled: bool
+    created_at: datetime
+    updated_at: datetime
+
+    def applies_to(self, team: str, virtual_key_id: str) -> bool:
+        match self.scope:
+            case BudgetScope.GLOBAL:
+                return True
+            case BudgetScope.TEAM:
+                return self.scope_value == team
+            case BudgetScope.KEY:
+                return self.scope_value == virtual_key_id

@@ -1,11 +1,11 @@
 import json
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
 import anyio
 import httpx
 import pytest
+from conftest import MakeKey
 from fastapi import FastAPI
 from mock_providers import (
     ANTHROPIC_EXPECTED_NANOUSD,
@@ -39,37 +39,6 @@ ANTHROPIC_USAGE = Usage(
     cache_write_1h_tokens=1000,
 )
 OPENAI_USAGE = Usage(input_tokens=1134, output_tokens=567, cache_read_tokens=100)
-
-MakeKey = Callable[..., Awaitable[str]]
-
-
-@pytest.fixture
-def providers() -> MockProviders:
-    return MockProviders()
-
-
-@pytest.fixture
-def upstream_transport(providers: MockProviders) -> httpx.AsyncBaseTransport:
-    return providers.transport
-
-
-@pytest.fixture
-def make_key(client: httpx.AsyncClient, admin_headers: dict[str, str]) -> MakeKey:
-    async def make(provider: Provider, team: str = "search") -> str:
-        real = OPENAI_REAL_KEY if provider is Provider.OPENAI else ANTHROPIC_REAL_KEY
-        cred = await client.post(
-            "/admin/credentials",
-            json={"name": f"{provider}-{team}", "provider": provider, "api_key": real},
-            headers=admin_headers,
-        )
-        key = await client.post(
-            "/admin/keys",
-            json={"name": "svc", "team": team, "credential_id": cred.json()["id"]},
-            headers=admin_headers,
-        )
-        return key.json()["key"]
-
-    return make
 
 
 def _read_all_files(directory: Path) -> bytes:

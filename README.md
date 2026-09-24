@@ -98,6 +98,7 @@ curl -s "localhost:8080/admin/spend?group_by=team&start=2026-09-01" -H "$ADMIN"
 
 - **Streaming.** Responses are relayed event by event, byte for byte, while a parser reads usage along the way. Anthropic reports usage in `message_start` and updates it in `message_delta`. For OpenAI, Tollbooth sets `stream_options.include_usage=true`, reads the final usage chunk, and removes that chunk if your client didn't ask for it.
 - **Cost.** Every price is a multiple of $0.001 per 1M tokens, so costs are exact integers in nanodollars, never floats. Uncached input, output, cache reads, and cache writes are each billed at their own rate. Each ledger row stores its cost at the time of the request, so later price changes don't rewrite history.
+- **Budgets.** A hard budget answers requests with a 429 in the provider's error format (with `Retry-After` until the period resets) once its period's spend reaches the limit. Cost is known only after a response, so requests already in flight can overshoot a limit slightly. Soft budgets only alert.
 - **Failures still count.** Upstream 4xx/5xx responses, errors mid-stream, unreachable upstreams, and client disconnects all produce a ledger row with an `outcome` and `error_type`.
 
 ## Admin API
@@ -115,6 +116,9 @@ All routes require `Authorization: Bearer $TOLLBOOTH_ADMIN_TOKEN`. Interactive d
 | `GET` | `/admin/spend` | Spend report: `group_by=team\|model\|provider\|key`, plus the ledger filters below |
 | `GET` | `/admin/spend/timeseries` | Spend per `interval=day\|hour` bucket (UTC), optionally split by `group_by`; `start` and `end` required |
 | `GET` | `/admin/requests` | Ledger entries, newest first, metadata only. Paged with `limit` and `cursor` (`next_cursor` from the previous page). |
+| `POST` | `/admin/budgets` | Create a budget: `name`, `scope` (`{"type": "global"\|"team"\|"key", "value": ...}`), `period` (`day`\|`week`\|`month`, UTC), `limit_usd`, `enforcement` (`soft`\|`hard`), `thresholds` (percent, default `[50, 80, 100]`) |
+| `GET` | `/admin/budgets` | Budgets with current-period spend, percent used, and whether each is exhausted |
+| `GET` / `PATCH` / `DELETE` | `/admin/budgets/{id}` | Read, partially update, or delete a budget |
 
 Ledger filters, accepted by all three reporting routes: `start` (inclusive), `end` (exclusive), `team`, `provider`, `model`, `key_id`, `outcome`.
 

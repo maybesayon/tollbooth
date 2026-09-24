@@ -2,7 +2,12 @@ export type Provider = 'openai' | 'anthropic'
 export type GroupBy = 'team' | 'model' | 'provider' | 'key'
 export type Interval = 'day' | 'hour'
 export type Outcome =
-  'success' | 'upstream_error' | 'upstream_unreachable' | 'client_disconnected' | 'proxy_error'
+  | 'success'
+  | 'upstream_error'
+  | 'upstream_unreachable'
+  | 'client_disconnected'
+  | 'proxy_error'
+  | 'budget_exceeded'
 
 /** USD amounts arrive as exact fixed-point decimal strings. */
 export type USD = string
