@@ -3,8 +3,14 @@ from dataclasses import dataclass
 import httpx
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from tollbooth.budgets import BudgetTracker
 from tollbooth.pricing import PricingTable
-from tollbooth.repositories.base import CredentialRepository, KeyRepository, LedgerRepository
+from tollbooth.repositories.base import (
+    BudgetRepository,
+    CredentialRepository,
+    KeyRepository,
+    LedgerRepository,
+)
 from tollbooth.security import SecretBox
 from tollbooth.settings import Settings
 
@@ -19,3 +25,5 @@ class AppState:
     credentials: CredentialRepository
     keys: KeyRepository
     ledger: LedgerRepository
+    budgets: BudgetRepository
+    budget_tracker: BudgetTracker

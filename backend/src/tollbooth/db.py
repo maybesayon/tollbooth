@@ -103,6 +103,24 @@ ledger = Table(
 )
 
 
+budgets = Table(
+    "budgets",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("name", String(200), nullable=False),
+    Column("scope", String(16), nullable=False),
+    Column("scope_value", String(200), nullable=True),
+    Column("period", String(16), nullable=False),
+    Column("limit_nanousd", BigInteger, nullable=False),
+    Column("enforcement", String(16), nullable=False),
+    Column("thresholds", Text, nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),
+    Column("updated_at", UTCDateTime, nullable=False),
+    Index(None, "scope", "scope_value"),
+)
+
+
 def create_engine(database_url: str) -> AsyncEngine:
     url = make_url(database_url)
     if url.get_backend_name() == "sqlite" and url.database not in (None, "", ":memory:"):

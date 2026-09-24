@@ -68,6 +68,10 @@ class RequestMeter:
         except Exception:
             logger.exception("failed to write ledger entry %s", entry.id)
             return
+        try:
+            await self.state.budget_tracker.record(entry)
+        except Exception:
+            logger.exception("failed to update budgets for ledger entry %s", entry.id)
         logger.info(
             "ledger id=%s team=%s key=%s provider=%s model=%s status=%s outcome=%s "
             "cost_nanousd=%s latency_ms=%s",
