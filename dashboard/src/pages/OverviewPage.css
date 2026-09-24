@@ -3,13 +3,6 @@
   gap: 16px;
 }
 
-.page-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .overview > *,
 .overview-body > * {
   min-width: 0;
@@ -23,13 +16,6 @@
 
 .overview-body.refreshing {
   opacity: 0.6;
-}
-
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
 }
 
 .custom-range {
