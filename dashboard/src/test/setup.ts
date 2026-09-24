@@ -6,3 +6,10 @@ afterEach(() => {
   cleanup()
   sessionStorage.clear()
 })
+
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub

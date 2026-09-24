@@ -24,6 +24,12 @@ export function formatUSD(value: USD | number | null | undefined): string {
   return Math.abs(amount) >= 1 ? usdLarge.format(amount) : usdSmall.format(amount)
 }
 
+/** Axis ticks: cents whenever the value is at least a cent, so a scale reads $0.80 not $0.8. */
+export function formatUSDTick(value: number): string {
+  if (value === 0) return '$0'
+  return Math.abs(value) >= 0.01 ? usdLarge.format(value) : usdSmall.format(value)
+}
+
 /** Full precision, for tooltips and titles where the exact ledger value matters. */
 export function formatUSDExact(value: USD | null | undefined): string {
   if (value === null || value === undefined) return 'unpriced'

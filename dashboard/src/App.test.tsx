@@ -1,28 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
-import { App } from './App'
-import { AuthProvider } from './auth/AuthProvider'
-
-function renderApp(path = '/') {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <MemoryRouter initialEntries={[path]}>
-          <App />
-        </MemoryRouter>
-      </AuthProvider>
-    </QueryClientProvider>,
-  )
-}
-
-function mockFetch(status: number, body: unknown = []) {
-  const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), { status }))
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
-}
+import { EMPTY_ROUTES, fakeApi } from './test/fakeApi'
+import { renderApp, signIn } from './test/render'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -36,20 +15,20 @@ describe('sign in', () => {
   })
 
   it('verifies the token with the server, then shows the app', async () => {
-    const fetchMock = mockFetch(200)
+    const api = fakeApi(EMPTY_ROUTES)
     renderApp()
     await userEvent.type(screen.getByLabelText('Admin token'), 'secret-token')
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe('/admin/credentials')
-    expect(init.headers).toMatchObject({ Authorization: 'Bearer secret-token' })
+    const [first] = api.calls
+    expect(first?.url.pathname).toBe('/admin/credentials')
+    expect(first?.init.headers).toMatchObject({ Authorization: 'Bearer secret-token' })
     expect(sessionStorage.getItem('tollbooth.adminToken')).toBe('secret-token')
   })
 
   it('reports a rejected token', async () => {
-    mockFetch(401, { detail: 'invalid or missing admin token' })
+    fakeApi({ '/admin/credentials': { detail: 'invalid or missing admin token' } }, 401)
     renderApp()
     await userEvent.type(screen.getByLabelText('Admin token'), 'wrong')
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -58,7 +37,10 @@ describe('sign in', () => {
   })
 
   it('reports an unreachable server', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('offline'))))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new TypeError('offline'))),
+    )
     renderApp()
     await userEvent.type(screen.getByLabelText('Admin token'), 'x')
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -68,7 +50,8 @@ describe('sign in', () => {
 
 describe('signed in', () => {
   beforeEach(() => {
-    sessionStorage.setItem('tollbooth.adminToken', 'secret-token')
+    signIn()
+    fakeApi(EMPTY_ROUTES)
   })
 
   it('navigates between pages', async () => {
@@ -81,6 +64,13 @@ describe('signed in', () => {
   it('sends unknown paths to the overview', () => {
     renderApp('/nope')
     expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument()
+  })
+
+  it('signs out when the server rejects the stored token', async () => {
+    fakeApi(EMPTY_ROUTES, 401)
+    renderApp()
+    expect(await screen.findByLabelText('Admin token')).toBeInTheDocument()
+    expect(sessionStorage.getItem('tollbooth.adminToken')).toBeNull()
   })
 
   it('signs out', async () => {
