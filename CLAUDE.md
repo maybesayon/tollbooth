@@ -41,7 +41,13 @@ compute cost -> write one ledger row in a `finally` block.
 Streaming usage:
 - Anthropic: input/cache tokens in `message_start`, output tokens in `message_delta` (cumulative).
 - OpenAI: Tollbooth forces `stream_options.include_usage=true` and reads the final usage chunk. If
-  the client did not request usage, that chunk is stripped before it reaches the client.
+  the client did not request usage, that chunk is stripped before it reaches the client. The
+  `"usage": null` field OpenAI then adds to every other chunk is left alone: events are forwarded
+  byte-for-byte, never re-serialized.
+- Usage is normalized (`domain.Usage`): `input_tokens` excludes cache reads/writes, so OpenAI's
+  `prompt_tokens` has `cached_tokens` subtracted, and each bucket is priced at its own rate.
+- A client disconnect cancels the relay; the ledger write is shielded from cancellation and the
+  row is recorded with outcome `client_disconnected` and whatever usage had arrived.
 
 ## Conventions
 
