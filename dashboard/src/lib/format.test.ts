@@ -6,6 +6,7 @@ import {
   formatPercent,
   formatUSD,
   formatUSDExact,
+  formatUSDTick,
 } from './format'
 
 describe('formatUSD', () => {
@@ -47,5 +48,14 @@ describe('number helpers', () => {
 
   it('formats timestamps in UTC', () => {
     expect(formatDateTimeUTC('2026-09-01T12:15:03Z')).toBe('Sep 1, 12:15:03 PM UTC')
+  })
+})
+
+describe('formatUSDTick', () => {
+  it('uses cents at or above one cent', () => {
+    expect(formatUSDTick(0)).toBe('$0')
+    expect(formatUSDTick(0.8)).toBe('$0.80')
+    expect(formatUSDTick(2.4)).toBe('$2.40')
+    expect(formatUSDTick(0.0025)).toBe('$0.0025')
   })
 })
