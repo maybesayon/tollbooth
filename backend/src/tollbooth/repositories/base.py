@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Protocol
 
 from tollbooth.domain import (
+    Budget,
     GroupBy,
     Interval,
     LedgerEntry,
@@ -68,6 +69,20 @@ class KeyRepository(Protocol):
         ...
 
 
+class BudgetRepository(Protocol):
+    async def create(self, budget: Budget) -> None: ...
+
+    async def get(self, budget_id: str) -> Budget | None: ...
+
+    async def list_all(self) -> list[Budget]: ...
+
+    async def update(self, budget: Budget) -> bool:
+        """Replace a budget's fields; False if it does not exist."""
+        ...
+
+    async def delete(self, budget_id: str) -> bool: ...
+
+
 class LedgerRepository(Protocol):
     async def record(self, entry: LedgerEntry) -> None: ...
 
@@ -78,6 +93,10 @@ class LedgerRepository(Protocol):
         ...
 
     async def spend(self, group_by: GroupBy, ledger_filter: LedgerFilter) -> list[SpendRow]: ...
+
+    async def total_cost(self, ledger_filter: LedgerFilter) -> int:
+        """Sum of priced cost in nanodollars (unpriced requests count as zero)."""
+        ...
 
     async def timeseries(
         self, interval: Interval, group_by: GroupBy | None, ledger_filter: LedgerFilter

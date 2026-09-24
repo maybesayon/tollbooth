@@ -1,15 +1,17 @@
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
 import httpx
 import pytest
 from cryptography.fernet import Fernet
 from fastapi import FastAPI
+from mock_providers import ANTHROPIC_REAL_KEY, OPENAI_REAL_KEY, MockProviders
 from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tollbooth.db import create_engine, run_migrations
+from tollbooth.domain import Provider
 from tollbooth.main import create_app
 from tollbooth.settings import Settings
 from tollbooth.state import AppState
@@ -43,8 +45,13 @@ def settings(database_url: str) -> Settings:
 
 
 @pytest.fixture
-def upstream_transport() -> httpx.AsyncBaseTransport | None:
-    return None
+def providers() -> MockProviders:
+    return MockProviders()
+
+
+@pytest.fixture
+def upstream_transport(providers: MockProviders) -> httpx.AsyncBaseTransport:
+    return providers.transport
 
 
 @pytest.fixture
@@ -71,3 +78,27 @@ async def client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
 @pytest.fixture
 def admin_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {ADMIN_TOKEN}"}
+
+
+MakeKey = Callable[..., Awaitable[str]]
+
+
+@pytest.fixture
+def make_key(client: httpx.AsyncClient, admin_headers: dict[str, str]) -> MakeKey:
+    """Creates a credential plus a virtual key through the admin API; returns the plaintext key."""
+
+    async def make(provider: Provider, team: str = "search") -> str:
+        real = OPENAI_REAL_KEY if provider is Provider.OPENAI else ANTHROPIC_REAL_KEY
+        cred = await client.post(
+            "/admin/credentials",
+            json={"name": f"{provider}-{team}", "provider": provider, "api_key": real},
+            headers=admin_headers,
+        )
+        key = await client.post(
+            "/admin/keys",
+            json={"name": "svc", "team": team, "credential_id": cred.json()["id"]},
+            headers=admin_headers,
+        )
+        return key.json()["key"]
+
+    return make
