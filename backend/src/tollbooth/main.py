@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -27,6 +28,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         resolved = settings or Settings()  # type: ignore[call-arg]
+        _configure_logging(resolved.log_level)
         pricing = load_pricing(resolved.pricing_file)
         if resolved.auto_migrate:
             await asyncio.to_thread(run_migrations, resolved.database_url)
@@ -59,3 +61,12 @@ def create_app(
     app.include_router(admin_routes.router)
     app.include_router(proxy_routes.router)
     return app
+
+
+def _configure_logging(level: str) -> None:
+    logger = logging.getLogger("tollbooth")
+    logger.setLevel(level)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+        logger.addHandler(handler)

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,3 +17,4 @@ class Settings(BaseSettings):
     anthropic_base_url: str = "https://api.anthropic.com"
     upstream_connect_timeout: float = 10.0
     upstream_read_timeout: float = 600.0
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"

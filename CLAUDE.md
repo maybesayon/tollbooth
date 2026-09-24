@@ -61,7 +61,9 @@ Streaming usage:
 - Tests use in-process mock providers (ASGI apps) injected into the upstream httpx client. No real
   API keys, no network. Cost assertions compare exact `Decimal` values.
 - Commands (run in `backend/`): `uv run ruff check`, `uv run ruff format`, `uv run pytest`.
-- Work on feature branches; open PRs into `main`; CI (ruff + pytest) must pass.
+- Work on feature branches; open PRs into `main`; CI (ruff, pytest, docker build + smoke test) must pass.
+- Docker: build context is the repo root; the image runs `uvicorn tollbooth.main:create_app --factory`
+  as a non-root user, with SQLite in the `/app/data` volume and `pricing.toml` mounted read-only.
 
 ## Roadmap
 

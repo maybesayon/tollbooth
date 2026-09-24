@@ -1,0 +1,13 @@
+services:
+  tollbooth:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - tollbooth-data:/app/data
+      - ./backend/pricing.toml:/app/pricing.toml:ro
+    restart: unless-stopped
+
+volumes:
+  tollbooth-data:
