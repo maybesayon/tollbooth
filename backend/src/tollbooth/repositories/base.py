@@ -4,9 +4,12 @@ from typing import Protocol
 
 from tollbooth.domain import (
     GroupBy,
+    Interval,
     LedgerEntry,
+    Outcome,
     Provider,
     ProviderCredential,
+    SpendPoint,
     SpendRow,
     VirtualKey,
 )
@@ -17,13 +20,22 @@ class DuplicateNameError(Exception):
 
 
 @dataclass(frozen=True)
-class SpendFilter:
+class LedgerFilter:
     start: datetime | None = None
     end: datetime | None = None
     team: str | None = None
     provider: Provider | None = None
     model: str | None = None
     virtual_key_id: str | None = None
+    outcome: Outcome | None = None
+
+
+@dataclass(frozen=True)
+class LedgerCursor:
+    """Position after the last entry of a page; entries are ordered newest first."""
+
+    created_at: datetime
+    id: str
 
 
 class CredentialRepository(Protocol):
@@ -59,6 +71,16 @@ class KeyRepository(Protocol):
 class LedgerRepository(Protocol):
     async def record(self, entry: LedgerEntry) -> None: ...
 
-    async def recent(self, limit: int = 100) -> list[LedgerEntry]: ...
+    async def page(
+        self, ledger_filter: LedgerFilter, limit: int = 100, after: LedgerCursor | None = None
+    ) -> list[LedgerEntry]:
+        """Entries newest first, starting after `after`."""
+        ...
 
-    async def spend(self, group_by: GroupBy, spend_filter: SpendFilter) -> list[SpendRow]: ...
+    async def spend(self, group_by: GroupBy, ledger_filter: LedgerFilter) -> list[SpendRow]: ...
+
+    async def timeseries(
+        self, interval: Interval, group_by: GroupBy | None, ledger_filter: LedgerFilter
+    ) -> list[SpendPoint]:
+        """Only buckets with at least one request are returned, ordered by bucket then group."""
+        ...

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tollbooth.db import metadata
 from tollbooth.domain import GroupBy, LedgerEntry, Outcome, Provider, Usage
-from tollbooth.repositories.base import DuplicateNameError, SpendFilter
+from tollbooth.repositories.base import DuplicateNameError, LedgerFilter
 from tollbooth.repositories.sql import (
     SqlCredentialRepository,
     SqlKeyRepository,
@@ -86,7 +86,7 @@ async def test_ledger_round_trip(engine: AsyncEngine) -> None:
         usage=Usage(1, 2, 3, 4, 5),
     )
     await repo.record(entry)
-    assert await repo.recent() == [entry]
+    assert await repo.page(LedgerFilter()) == [entry]
 
 
 async def test_spend_grouping_and_filters(engine: AsyncEngine) -> None:
@@ -104,7 +104,7 @@ async def test_spend_grouping_and_filters(engine: AsyncEngine) -> None:
         )
     )
 
-    by_team = await repo.spend(GroupBy.TEAM, SpendFilter())
+    by_team = await repo.spend(GroupBy.TEAM, LedgerFilter())
     assert [(r.group, r.requests, r.cost_nanousd, r.unpriced_requests) for r in by_team] == [
         ("search", 2, 3000, 0),
         ("ads", 2, 500, 1),
@@ -112,12 +112,12 @@ async def test_spend_grouping_and_filters(engine: AsyncEngine) -> None:
     ads = by_team[1]
     assert (ads.input_tokens, ads.cache_write_tokens) == (11, 7)
 
-    by_provider = await repo.spend(GroupBy.PROVIDER, SpendFilter())
+    by_provider = await repo.spend(GroupBy.PROVIDER, LedgerFilter())
     assert {r.group: r.cost_nanousd for r in by_provider} == {"openai": 3500, "anthropic": 0}
 
-    first_day = SpendFilter(start=T0, end=T0 + timedelta(days=1))
+    first_day = LedgerFilter(start=T0, end=T0 + timedelta(days=1))
     assert sum(r.requests for r in await repo.spend(GroupBy.MODEL, first_day)) == 3
 
-    only = await repo.spend(GroupBy.KEY, SpendFilter(team="ads", provider=Provider.OPENAI))
+    only = await repo.spend(GroupBy.KEY, LedgerFilter(team="ads", provider=Provider.OPENAI))
     assert [(r.group, r.cost_nanousd) for r in only] == [("k1", 500)]
-    assert await repo.spend(GroupBy.TEAM, SpendFilter(model="nope")) == []
+    assert await repo.spend(GroupBy.TEAM, LedgerFilter(model="nope")) == []

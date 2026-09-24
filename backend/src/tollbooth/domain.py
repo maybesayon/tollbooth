@@ -81,9 +81,13 @@ class LedgerEntry:
     upstream_request_id: str | None = None
 
 
+class Interval(StrEnum):
+    HOUR = "hour"
+    DAY = "day"
+
+
 @dataclass(frozen=True)
-class SpendRow:
-    group: str
+class SpendMetrics:
     requests: int
     input_tokens: int
     output_tokens: int
@@ -91,3 +95,17 @@ class SpendRow:
     cache_write_tokens: int
     cost_nanousd: int
     unpriced_requests: int
+    error_requests: int
+
+
+@dataclass(frozen=True)
+class SpendRow(SpendMetrics):
+    group: str
+
+
+@dataclass(frozen=True)
+class SpendPoint(SpendMetrics):
+    """Metrics for one time bucket (UTC start), optionally split by a group."""
+
+    bucket: datetime
+    group: str | None

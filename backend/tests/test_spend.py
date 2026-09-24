@@ -64,6 +64,7 @@ async def test_spend_by_team(client: httpx.AsyncClient, admin_headers: dict[str,
         "cache_write_tokens": 3000,
         "cost_usd": "0.020047801",
         "unpriced_requests": 1,
+        "error_requests": 0,
     }
     assert [(g["group"], g["cost_usd"], g["unpriced_requests"]) for g in report["groups"]] == [
         ("ads", "0.01953", 1),
