@@ -1,13 +1,11 @@
 from datetime import datetime
-from typing import Annotated
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
+from tollbooth.api.fields import Name
 from tollbooth.api.ledger_schemas import USD
 from tollbooth.cost import nanousd_to_usd
 from tollbooth.domain import Alert, Channel, ChannelType, Delivery, DeliveryStatus
-
-Name = Annotated[str, Field(min_length=1, max_length=200, pattern=r"\S")]
 
 
 class ChannelCreate(BaseModel):

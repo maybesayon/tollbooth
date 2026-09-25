@@ -112,3 +112,33 @@ async def test_key_requires_existing_credential(
 async def test_unknown_key_is_404(client: httpx.AsyncClient, admin_headers: dict[str, str]) -> None:
     assert (await client.get("/admin/keys/nope", headers=admin_headers)).status_code == 404
     assert (await client.post("/admin/keys/nope/revoke", headers=admin_headers)).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("GET", "/admin/requests?team=a%00b", None),
+        ("GET", "/admin/keys/abc%00", None),
+        ("POST", "/admin/keys/x%00/revoke", None),
+        ("POST", "/admin/credentials", {"name": "a\u0000b", "provider": "openai", "api_key": "k"}),
+        (
+            "POST",
+            "/admin/budgets",
+            {
+                "name": "b",
+                "scope": {"type": "team", "value": "t\u0000"},
+                "period": "day",
+                "limit_usd": 1,
+            },
+        ),
+    ],
+)
+async def test_nul_characters_are_rejected_not_500(
+    client: httpx.AsyncClient,
+    admin_headers: dict[str, str],
+    method: str,
+    path: str,
+    body: dict | None,
+) -> None:
+    response = await client.request(method, path, json=body, headers=admin_headers)
+    assert response.status_code in (400, 422), response.text

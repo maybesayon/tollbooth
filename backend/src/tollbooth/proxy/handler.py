@@ -15,14 +15,12 @@ from tollbooth.budgets import BudgetUsage
 from tollbooth.domain import Outcome, Provider, VirtualKey
 from tollbooth.providers.base import ProviderAdapter, StreamMeter
 from tollbooth.proxy.headers import client_response_headers, upstream_request_headers
-from tollbooth.proxy.metering import RequestMeter
+from tollbooth.proxy.metering import UNKNOWN_MODEL, RequestMeter
 from tollbooth.proxy.sse import SSEParser
 from tollbooth.security import DecryptionError, hash_virtual_key
 from tollbooth.state import AppState
 
 logger = logging.getLogger("tollbooth.proxy")
-
-UNKNOWN_MODEL = "unknown"
 
 
 class _RejectedError(Exception):

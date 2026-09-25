@@ -1,7 +1,11 @@
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
+import os
+import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import asyncpg
 import httpx
 import pytest
 from cryptography.fernet import Fernet
@@ -9,9 +13,11 @@ from fake_webhooks import WebhookReceiver
 from fastapi import FastAPI
 from mock_providers import ANTHROPIC_REAL_KEY, OPENAI_REAL_KEY, MockProviders
 from pydantic import SecretStr
+from sqlalchemy import select
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from tollbooth.db import create_engine, run_migrations
+from tollbooth.db import create_engine, metadata, run_migrations
 from tollbooth.domain import Provider
 from tollbooth.main import create_app
 from tollbooth.settings import Settings
@@ -21,9 +27,67 @@ ADMIN_TOKEN = "test-admin-token"
 PRICING_FILE = Path(__file__).parent.parent / "pricing.toml"
 
 
+POSTGRES_URL = os.environ.get("TOLLBOOTH_TEST_POSTGRES_URL")
+"""e.g. postgresql+asyncpg://user@127.0.0.1:5432/postgres; when set, every test gets a fresh
+Postgres database instead of a SQLite file."""
+
+
+def _in_thread[T](coro: Coroutine[object, object, T]) -> T:
+    """Run admin coroutines on their own loop so pytest-asyncio's loop is untouched."""
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
+
+
+async def _admin_sql(statement: str) -> None:
+    assert POSTGRES_URL is not None
+    url = make_url(POSTGRES_URL).set(drivername="postgresql")
+    conn = await asyncpg.connect(url.render_as_string(hide_password=False))
+    try:
+        await conn.execute(statement)
+    finally:
+        await conn.close()
+
+
+@pytest.fixture(scope="session")
+def postgres_template() -> Iterator[str | None]:
+    """A database migrated once per session; each test clones it."""
+    if POSTGRES_URL is None:
+        yield None
+        return
+    name = f"tollbooth_template_{uuid.uuid4().hex[:8]}"
+    _in_thread(_admin_sql(f'CREATE DATABASE "{name}"'))
+    run_migrations(make_url(POSTGRES_URL).set(database=name).render_as_string(False))
+    yield name
+    _in_thread(_admin_sql(f'DROP DATABASE "{name}" WITH (FORCE)'))
+
+
 @pytest.fixture
-def database_url(tmp_path: Path) -> str:
-    return f"sqlite+aiosqlite:///{tmp_path / 'tollbooth.db'}"
+def database_url(tmp_path: Path, postgres_template: str | None) -> Iterator[str]:
+    if POSTGRES_URL is None or postgres_template is None:
+        yield f"sqlite+aiosqlite:///{tmp_path / 'tollbooth.db'}"
+        return
+    name = f"tollbooth_test_{uuid.uuid4().hex[:12]}"
+    _in_thread(_admin_sql(f'CREATE DATABASE "{name}" TEMPLATE "{postgres_template}"'))
+    yield make_url(POSTGRES_URL).set(database=name).render_as_string(hide_password=False)
+    _in_thread(_admin_sql(f'DROP DATABASE "{name}" WITH (FORCE)'))
+
+
+async def persisted_bytes(engine: AsyncEngine, directory: Path) -> bytes:
+    """Everything the database holds: every row of every table, plus the raw files for SQLite
+    (which also catches content left in free pages or the WAL)."""
+    async with engine.connect() as conn:
+        dump = [
+            repr((await conn.execute(select(table))).all()).encode()
+            for table in metadata.sorted_tables
+        ]
+    await engine.dispose()
+    if engine.dialect.name == "sqlite":
+        dump.append(await asyncio.to_thread(_read_files, directory))
+    return b"".join(dump)
+
+
+def _read_files(directory: Path) -> bytes:
+    return b"".join(p.read_bytes() for p in sorted(directory.iterdir()) if p.is_file())
 
 
 @pytest.fixture
