@@ -7,9 +7,11 @@ import {
   useTestAlertChannel,
 } from '../../api/queries'
 import type { AlertChannel, ChannelType, CreatedAlertChannel } from '../../api/types'
+import { useAuth } from '../../auth/useAuth'
 import { formatDateUTC } from '../../lib/format'
 
 export function ChannelsSection() {
+  const { can } = useAuth()
   const channels = useAlertChannels()
   const [adding, setAdding] = useState(false)
   const [created, setCreated] = useState<CreatedAlertChannel | null>(null)
@@ -23,7 +25,7 @@ export function ChannelsSection() {
             Slack incoming webhooks or any HTTPS endpoint. URLs are stored encrypted.
           </p>
         </div>
-        {!adding && (
+        {!adding && can('editor') && (
           <button
             type="button"
             className="button"
@@ -94,6 +96,7 @@ export function ChannelsSection() {
 }
 
 function ChannelRow({ channel }: { channel: AlertChannel }) {
+  const { can } = useAuth()
   const test = useTestAlertChannel()
   const remove = useDeleteAlertChannel()
   const [confirming, setConfirming] = useState(false)
@@ -108,48 +111,50 @@ function ChannelRow({ channel }: { channel: AlertChannel }) {
       </td>
       <td className="secondary">{formatDateUTC(channel.created_at)}</td>
       <td className="actions-cell">
-        <span className="confirm">
-          {result && (
-            <span className={result.ok ? 'secondary' : 'error-text'} role="status">
-              {result.ok ? 'Test sent' : `Test failed: ${result.error}`}
-            </span>
-          )}
-          {confirming ? (
-            <>
-              <button type="button" className="button" onClick={() => setConfirming(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="button button-danger"
-                disabled={remove.isPending}
-                onClick={() => remove.mutate(channel.id)}
-              >
-                Delete channel
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="button"
-                disabled={test.isPending}
-                onClick={() => test.mutate(channel.id)}
-                aria-label={`Send test to ${channel.name}`}
-              >
-                {test.isPending ? 'Sending…' : 'Send test'}
-              </button>
-              <button
-                type="button"
-                className="button button-ghost button-danger"
-                onClick={() => setConfirming(true)}
-                aria-label={`Delete ${channel.name}`}
-              >
-                Delete
-              </button>
-            </>
-          )}
-        </span>
+        {can('editor') && (
+          <span className="confirm">
+            {result && (
+              <span className={result.ok ? 'secondary' : 'error-text'} role="status">
+                {result.ok ? 'Test sent' : `Test failed: ${result.error}`}
+              </span>
+            )}
+            {confirming ? (
+              <>
+                <button type="button" className="button" onClick={() => setConfirming(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="button button-danger"
+                  disabled={remove.isPending}
+                  onClick={() => remove.mutate(channel.id)}
+                >
+                  Delete channel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={test.isPending}
+                  onClick={() => test.mutate(channel.id)}
+                  aria-label={`Send test to ${channel.name}`}
+                >
+                  {test.isPending ? 'Sending…' : 'Send test'}
+                </button>
+                <button
+                  type="button"
+                  className="button button-ghost button-danger"
+                  onClick={() => setConfirming(true)}
+                  aria-label={`Delete ${channel.name}`}
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </span>
+        )}
       </td>
     </tr>
   )

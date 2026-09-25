@@ -8,7 +8,7 @@
 .login-card {
   display: grid;
   gap: 16px;
-  width: min(380px, 100%);
+  width: min(400px, 100%);
   padding: 28px;
 }
 
@@ -20,4 +20,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
 }
