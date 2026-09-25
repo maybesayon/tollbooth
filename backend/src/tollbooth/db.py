@@ -186,6 +186,55 @@ alert_deliveries = Table(
 )
 
 
+users = Table(
+    "users",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("email", String(320), nullable=False, unique=True),
+    Column("name", String(200), nullable=False),
+    Column("role", String(16), nullable=False),
+    Column("password_hash", Text, nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),
+    Column("updated_at", UTCDateTime, nullable=False),
+    Column("disabled_at", UTCDateTime, nullable=True),
+    Column("last_login_at", UTCDateTime, nullable=True),
+)
+
+sessions = Table(
+    "sessions",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column(
+        "user_id",
+        String(32),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+    Column("created_at", UTCDateTime, nullable=False),
+    Column("expires_at", UTCDateTime, nullable=False, index=True),
+    Column("last_seen_at", UTCDateTime, nullable=False),
+)
+
+api_tokens = Table(
+    "api_tokens",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column(
+        "user_id",
+        String(32),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+    Column("name", String(200), nullable=False),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("prefix", String(16), nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),
+    Column("last_used_at", UTCDateTime, nullable=True),
+)
+
+
 def create_engine(database_url: str) -> AsyncEngine:
     url = make_url(database_url)
     backend = url.get_backend_name()

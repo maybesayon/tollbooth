@@ -4,6 +4,7 @@ from typing import Protocol
 
 from tollbooth.domain import (
     Alert,
+    ApiToken,
     Budget,
     Channel,
     Delivery,
@@ -15,6 +16,7 @@ from tollbooth.domain import (
     ProviderCredential,
     SpendPoint,
     SpendRow,
+    User,
     VirtualKey,
 )
 
@@ -138,3 +140,59 @@ class LedgerRepository(Protocol):
     ) -> list[SpendPoint]:
         """Only buckets with at least one request are returned, ordered by bucket then group."""
         ...
+
+
+class UserRepository(Protocol):
+    async def create(self, user: User, password_hash: str) -> None:
+        """Raises DuplicateNameError if the email is taken."""
+        ...
+
+    async def get(self, user_id: str) -> User | None: ...
+
+    async def get_with_password(self, email: str) -> tuple[User, str] | None: ...
+
+    async def get_password_hash(self, user_id: str) -> str | None: ...
+
+    async def list_all(self) -> list[User]: ...
+
+    async def count(self) -> int: ...
+
+    async def count_active_admins(self) -> int: ...
+
+    async def update(self, user: User) -> bool:
+        """Save name, role, disabled_at and updated_at."""
+        ...
+
+    async def set_password(self, user_id: str, password_hash: str, now: datetime) -> None: ...
+
+    async def record_login(self, user_id: str, now: datetime) -> None: ...
+
+
+class SessionRepository(Protocol):
+    async def create(
+        self, session_hash: str, user_id: str, now: datetime, expires_at: datetime
+    ) -> None: ...
+
+    async def lookup(self, session_hash: str, now: datetime) -> tuple[User, datetime] | None:
+        """The session's user and last_seen_at, if the session exists and has not expired."""
+        ...
+
+    async def touch(self, session_hash: str, now: datetime) -> None: ...
+
+    async def delete(self, session_hash: str) -> None: ...
+
+    async def delete_for_user(self, user_id: str, keep: str | None = None) -> None: ...
+
+    async def delete_expired(self, now: datetime) -> None: ...
+
+
+class ApiTokenRepository(Protocol):
+    async def create(self, token: ApiToken, token_hash: str) -> None: ...
+
+    async def lookup(self, token_hash: str) -> tuple[ApiToken, User] | None: ...
+
+    async def list_for_user(self, user_id: str) -> list[ApiToken]: ...
+
+    async def delete(self, user_id: str, token_id: str) -> bool: ...
+
+    async def touch(self, token_id: str, now: datetime) -> None: ...

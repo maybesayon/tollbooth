@@ -10,9 +10,9 @@ from tollbooth.api.ledger_schemas import (
     TimeseriesQuery,
     TimeseriesReport,
 )
-from tollbooth.deps import State, require_admin
+from tollbooth.deps import State, require_viewer
 
-router = APIRouter(prefix="/admin", tags=["ledger"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin", tags=["ledger"], dependencies=[Depends(require_viewer)])
 
 
 @router.get("/spend")

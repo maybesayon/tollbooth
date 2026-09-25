@@ -11,15 +11,17 @@ from tollbooth.api.budget_schemas import (
     scope_value,
     to_nanousd,
 )
-from tollbooth.deps import State, require_admin
+from tollbooth.deps import Editor, State, require_viewer
 from tollbooth.domain import Budget, BudgetScope
 from tollbooth.security import new_id
 
-router = APIRouter(prefix="/admin/budgets", tags=["budgets"], dependencies=[Depends(require_admin)])
+router = APIRouter(
+    prefix="/admin/budgets", tags=["budgets"], dependencies=[Depends(require_viewer)]
+)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_budget(body: BudgetCreate, state: State) -> BudgetOut:
+async def create_budget(body: BudgetCreate, state: State, principal: Editor) -> BudgetOut:
     await _check_scope(body.scope, state)
     await _check_channels(body.channel_ids, state)
     now = datetime.now(UTC)
@@ -55,7 +57,9 @@ async def get_budget(budget_id: str, state: State) -> BudgetOut:
 
 
 @router.patch("/{budget_id}")
-async def update_budget(budget_id: str, body: BudgetUpdate, state: State) -> BudgetOut:
+async def update_budget(
+    budget_id: str, body: BudgetUpdate, state: State, principal: Editor
+) -> BudgetOut:
     budget = await _existing(budget_id, state)
     if body.scope is not None:
         await _check_scope(body.scope, state)
@@ -69,7 +73,7 @@ async def update_budget(budget_id: str, body: BudgetUpdate, state: State) -> Bud
 
 
 @router.delete("/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_budget(budget_id: str, state: State) -> Response:
+async def delete_budget(budget_id: str, state: State, principal: Editor) -> Response:
     if not await state.budgets.delete(budget_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "budget not found")
     state.budget_tracker.invalidate()

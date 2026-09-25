@@ -20,7 +20,7 @@ git clone https://github.com/maybesayon/tollbooth.git && cd tollbooth
 cp .env.example .env
 ```
 
-Fill in the two required values in `.env`:
+Fill in `.env`: the encryption key is required, and the admin token lets you create the first admin account from the dashboard:
 
 ```bash
 python3 -c "import secrets; print('TOLLBOOTH_ADMIN_TOKEN=' + secrets.token_urlsafe(32))"
@@ -37,7 +37,7 @@ Register a real provider key, then issue a virtual key for a team:
 
 ```bash
 set -a; source .env; set +a
-export ADMIN="Authorization: Bearer $TOLLBOOTH_ADMIN_TOKEN"
+export ADMIN="Authorization: Bearer $TOLLBOOTH_ADMIN_TOKEN"   # or a personal API token (tbu_…)
 
 curl -s localhost:8080/admin/credentials -H "$ADMIN" -H "content-type: application/json" \
   -d '{"name": "openai-prod", "provider": "openai", "api_key": "sk-..."}'
@@ -58,7 +58,7 @@ from anthropic import Anthropic
 client = Anthropic(base_url="http://localhost:8080", api_key="tb_...")
 ```
 
-Open the dashboard at http://localhost:8080/dashboard and sign in with the admin token: spend over time by team, model, or provider, budgets and alerts, key management, and a request log. Or ask the API directly:
+Open the dashboard at http://localhost:8080/dashboard. The first visit asks for the admin token to create the first admin account (or run `docker compose exec tollbooth tollbooth create-user --email you@example.com --name You`). After that, everyone signs in with email and password. The dashboard shows spend over time by team, model, or provider, budgets and alerts, key management, and a request log. Or ask the API directly:
 
 ```bash
 curl -s "localhost:8080/admin/spend?group_by=team&start=2026-09-01" -H "$ADMIN"
@@ -101,9 +101,23 @@ curl -s "localhost:8080/admin/spend?group_by=team&start=2026-09-01" -H "$ADMIN"
 - **Budgets.** A hard budget answers requests with a 429 in the provider's error format (with `Retry-After` until the period resets) once its period's spend reaches the limit. Cost is known only after a response, so requests already in flight can overshoot a limit slightly. Soft budgets only alert.
 - **Failures still count.** Upstream 4xx/5xx responses, errors mid-stream, unreachable upstreams, and client disconnects all produce a ledger row with an `outcome` and `error_type`.
 
+## Users and access
+
+People sign in to the dashboard with email and password. Each account has one role:
+
+| Role | Can |
+|---|---|
+| `viewer` | See spend, requests, keys, budgets, alerts, and channels |
+| `editor` | Everything a viewer can, plus create and revoke virtual keys and manage budgets and alert channels |
+| `admin` | Everything, plus provider credentials and user accounts |
+
+The dashboard session is an HttpOnly, `SameSite=Strict` cookie that lasts 7 days (`TOLLBOOTH_SESSION_TTL_HOURS`). Behind HTTPS, set `TOLLBOOTH_COOKIE_SECURE=true` unless Tollbooth itself sees the HTTPS scheme. Failed sign-ins are throttled per email and per client address. Changing a password signs out that user's other sessions, and disabling a user ends their sessions and stops their API tokens.
+
+Scripts use personal API tokens (`tbu_…`, created under your account, with your role) as `Authorization: Bearer`. `TOLLBOOTH_ADMIN_TOKEN` is optional. When set, it works as a break-glass admin credential and lets the first admin account be created from the dashboard.
+
 ## Admin API
 
-All routes require `Authorization: Bearer $TOLLBOOTH_ADMIN_TOKEN`. Interactive docs are served at `/docs`.
+Admin routes take an API token (or the admin token) as `Authorization: Bearer …`, or a dashboard session. Interactive docs are served at `/docs`.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -122,6 +136,13 @@ All routes require `Authorization: Bearer $TOLLBOOTH_ADMIN_TOKEN`. Interactive d
 | `POST` | `/admin/channels` | Add an alert channel: `name`, `type` (`webhook`\|`slack`), `url`. Webhooks get a `signing_secret`, shown once. |
 | `GET` / `DELETE` | `/admin/channels`, `/admin/channels/{id}` | List (URL host only) or delete channels |
 | `POST` | `/admin/channels/{id}/test` | Send a test notification |
+| `GET` / `POST` | `/admin/users` | List or create users (admin); omit `password` to get a one-time temporary password |
+| `PATCH` | `/admin/users/{id}` | Change `name`, `role`, or `disabled`. The last active admin cannot be demoted or disabled. |
+| `POST` | `/admin/users/{id}/reset-password` | Issue a temporary password and end the user's sessions |
+| `POST` | `/auth/login`, `/auth/logout` | Dashboard sign-in and sign-out (session cookie) |
+| `GET` | `/auth/me` | The signed-in user and role |
+| `POST` | `/auth/password` | Change your password (`current_password`, `new_password`, at least 12 characters) |
+| `GET` / `POST` / `DELETE` | `/auth/tokens` | Your API tokens; a new token is shown once |
 | `GET` | `/admin/alerts` | Recent threshold alerts with per-channel delivery status (`?budget_id=`, `?limit=`) |
 
 Budgets take `channel_ids` to choose where their alerts go.
@@ -161,7 +182,9 @@ Settings are read from environment variables; see [`.env.example`](.env.example)
 
 | Variable | Default | |
 |---|---|---|
-| `TOLLBOOTH_ADMIN_TOKEN` | required | Bearer token for `/admin` |
+| `TOLLBOOTH_ADMIN_TOKEN` | unset | Optional break-glass admin credential; enables first-run setup in the dashboard |
+| `TOLLBOOTH_SESSION_TTL_HOURS` | `168` | Dashboard session lifetime |
+| `TOLLBOOTH_COOKIE_SECURE` | auto | `true` behind HTTPS termination; by default the cookie is Secure when the request is HTTPS |
 | `TOLLBOOTH_ENCRYPTION_KEY` | required | Fernet key(s) for provider keys. To rotate, list the new key first: `new,old`. |
 | `TOLLBOOTH_DATABASE_URL` | `sqlite+aiosqlite:///./data/tollbooth.db` | Or `postgresql+asyncpg://…` |
 | `TOLLBOOTH_AUTO_MIGRATE` | `true` | Run database migrations on startup |
@@ -216,7 +239,7 @@ Tests run against in-process fakes of both provider APIs, so they need no networ
 1. **Metering proxy** (done)
 2. **Web dashboard** (done)
 3. **Budgets and alerts** (done)
-4. **Postgres** (done) and multi-user admin
+4. **Postgres and multi-user accounts** (done)
 5. Model routing
 
 ## License
