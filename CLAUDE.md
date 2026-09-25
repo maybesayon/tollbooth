@@ -73,6 +73,15 @@ Alerts (`alerts.py`):
   `X-Tollbooth-Signature: v1=hex(HMAC-SHA256(secret, "{X-Tollbooth-Timestamp}.{body}"))`.
   Slack channels get `{"text": ...}`.
 
+Auth (`auth.py`, `deps.py`, `api/auth_routes.py`, `api/user_routes.py`):
+- Every `/admin` request resolves to a `Principal`: a user via the session cookie or a `tbu_` API
+  token, or the optional admin token. Roles are global and ordered viewer < editor < admin;
+  routes declare `Viewer`/`Editor`/`Admin` (routers default to viewer).
+- Sessions and API tokens are random 256-bit tokens stored as SHA-256; passwords are Argon2id
+  (hashed off the event loop). Cookie-authenticated unsafe requests need `X-Tollbooth-CSRF: 1`.
+- Login failures are indistinguishable (unknown email still costs a hash) and throttled in memory.
+- The last active admin can't be demoted or disabled, and admins can't demote themselves.
+
 ## Conventions
 
 - Python 3.12, full type hints, small modules, no decorative comments or banner comments.
@@ -91,7 +100,7 @@ Alerts (`alerts.py`):
 - Commands (run in `backend/`): `uv run ruff check`, `uv run ruff format`, `uv run pytest`.
   `TOLLBOOTH_TEST_POSTGRES_URL=postgresql+asyncpg://user@host/postgres uv run pytest` runs the
   suite on Postgres (a fresh database per test, cloned from a migrated template).
-- CLI: `tollbooth copy-db SOURCE TARGET` (`cli.py`, `copydb.py`).
+- CLI: `tollbooth copy-db SOURCE TARGET`, `tollbooth create-user` (`cli.py`).
 - Work on feature branches; open PRs into `main`; CI (ruff, pytest, docker build + smoke test) must pass.
 - Docker: build context is the repo root; the image runs `uvicorn tollbooth.main:create_app --factory`
   as a non-root user, with SQLite in the `/app/data` volume and `pricing.toml` mounted read-only.
@@ -100,7 +109,7 @@ Alerts (`alerts.py`):
 
 - React 19 + TypeScript (strict) + Vite, TanStack Query for server state, React Router, Recharts.
 - Served by the backend at `/dashboard` (`TOLLBOOTH_DASHBOARD_DIR`); `npm run dev` proxies `/admin`.
-- Auth is the admin token in `sessionStorage`; any 401 signs out. Phase 4 replaces this with users.
+- Auth: email/password session cookie (HttpOnly); send `X-Tollbooth-CSRF: 1` on writes; any 401 signs out.
 - USD stays a decimal string from the API until display (`lib/format.ts`); never do money math in
   floats beyond chart heights.
 - Colors are CSS tokens in `index.css` (light + dark). Chart series use `--series-1..7` in fixed
@@ -117,5 +126,6 @@ Alerts (`alerts.py`):
   stacked spend chart, breakdown), key and credential management, request log.
 - **Phase 3** (done): budgets (soft/hard, per team/key/global, UTC day/week/month) and alerts
   (Slack + signed webhooks), with a dashboard Budgets page. (per team/key limits, soft/hard enforcement, notifications).
-- **Phase 4** (in progress): Postgres (done), multi-user admin accounts and roles.
+- **Phase 4** (in progress): Postgres (done), multi-user accounts and roles (backend done), audit
+  log, dashboard sign-in and user management.
 - **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).

@@ -8,7 +8,16 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from tollbooth.alerts import AlertManager
-from tollbooth.api import admin_routes, alert_routes, budget_routes, ledger_routes, proxy_routes
+from tollbooth.api import (
+    admin_routes,
+    alert_routes,
+    auth_routes,
+    budget_routes,
+    ledger_routes,
+    proxy_routes,
+    user_routes,
+)
+from tollbooth.auth import LoginThrottle
 from tollbooth.budgets import BudgetTracker
 from tollbooth.dashboard import mount_dashboard
 from tollbooth.db import create_engine, run_migrations
@@ -20,6 +29,11 @@ from tollbooth.repositories.sql import (
     SqlCredentialRepository,
     SqlKeyRepository,
     SqlLedgerRepository,
+)
+from tollbooth.repositories.sql_auth import (
+    SqlApiTokenRepository,
+    SqlSessionRepository,
+    SqlUserRepository,
 )
 from tollbooth.security import SecretBox
 from tollbooth.settings import Settings
@@ -73,6 +87,10 @@ def create_app(
                 channels=channels,
                 alerts=alerts,
                 alert_manager=alert_manager,
+                users=SqlUserRepository(engine),
+                sessions=SqlSessionRepository(engine),
+                api_tokens=SqlApiTokenRepository(engine),
+                login_throttle=LoginThrottle(),
             )
             try:
                 yield
@@ -98,6 +116,8 @@ def create_app(
     app.include_router(ledger_routes.router)
     app.include_router(budget_routes.router)
     app.include_router(alert_routes.router)
+    app.include_router(auth_routes.router)
+    app.include_router(user_routes.router)
     app.include_router(proxy_routes.router)
     if resolved.dashboard_dir is not None:
         mount_dashboard(app, resolved.dashboard_dir)

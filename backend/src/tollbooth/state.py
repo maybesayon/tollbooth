@@ -4,15 +4,19 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tollbooth.alerts import AlertManager
+from tollbooth.auth import LoginThrottle
 from tollbooth.budgets import BudgetTracker
 from tollbooth.pricing import PricingTable
 from tollbooth.repositories.base import (
     AlertRepository,
+    ApiTokenRepository,
     BudgetRepository,
     ChannelRepository,
     CredentialRepository,
     KeyRepository,
     LedgerRepository,
+    SessionRepository,
+    UserRepository,
 )
 from tollbooth.security import SecretBox
 from tollbooth.settings import Settings
@@ -33,3 +37,7 @@ class AppState:
     channels: ChannelRepository
     alerts: AlertRepository
     alert_manager: AlertManager
+    users: UserRepository
+    sessions: SessionRepository
+    api_tokens: ApiTokenRepository
+    login_throttle: LoginThrottle

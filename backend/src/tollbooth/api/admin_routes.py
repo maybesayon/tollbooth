@@ -7,15 +7,17 @@ from tollbooth.api.schemas import (
     KeyCreated,
     KeyOut,
 )
-from tollbooth.deps import State, require_admin
+from tollbooth.deps import Admin, Editor, State, require_viewer
 from tollbooth.repositories.base import DuplicateNameError
 from tollbooth.security import generate_virtual_key
 
-router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_viewer)])
 
 
 @router.post("/credentials", status_code=status.HTTP_201_CREATED)
-async def create_credential(body: CredentialCreate, state: State) -> CredentialOut:
+async def create_credential(
+    body: CredentialCreate, state: State, principal: Admin
+) -> CredentialOut:
     encrypted = state.secret_box.encrypt(body.api_key.get_secret_value())
     try:
         credential = await state.credentials.create(body.name, body.provider, encrypted)
@@ -30,7 +32,7 @@ async def list_credentials(state: State) -> list[CredentialOut]:
 
 
 @router.post("/keys", status_code=status.HTTP_201_CREATED)
-async def create_key(body: KeyCreate, state: State) -> KeyCreated:
+async def create_key(body: KeyCreate, state: State, principal: Editor) -> KeyCreated:
     if await state.credentials.get(body.credential_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "credential not found")
     new_key = generate_virtual_key()
@@ -61,7 +63,7 @@ async def get_key(key_id: str, state: State) -> KeyOut:
 
 
 @router.post("/keys/{key_id}/revoke")
-async def revoke_key(key_id: str, state: State) -> KeyOut:
+async def revoke_key(key_id: str, state: State, principal: Editor) -> KeyOut:
     key = await state.keys.revoke(key_id)
     if key is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "key not found")

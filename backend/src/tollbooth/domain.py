@@ -205,3 +205,42 @@ class Alert:
     limit_nanousd: int
     created_at: datetime
     deliveries: tuple[Delivery, ...] = ()
+
+
+class Role(StrEnum):
+    """Global roles, each including the previous: viewer reads, editor also manages keys,
+    budgets and alert channels, admin also manages provider credentials and users."""
+
+    VIEWER = "viewer"
+    EDITOR = "editor"
+    ADMIN = "admin"
+
+    def includes(self, other: "Role") -> bool:
+        order = [Role.VIEWER, Role.EDITOR, Role.ADMIN]
+        return order.index(self) >= order.index(other)
+
+
+@dataclass(frozen=True)
+class User:
+    id: str
+    email: str
+    name: str
+    role: Role
+    created_at: datetime
+    updated_at: datetime
+    disabled_at: datetime | None = None
+    last_login_at: datetime | None = None
+
+    @property
+    def active(self) -> bool:
+        return self.disabled_at is None
+
+
+@dataclass(frozen=True)
+class ApiToken:
+    id: str
+    user_id: str
+    name: str
+    prefix: str
+    created_at: datetime
+    last_used_at: datetime | None = None
