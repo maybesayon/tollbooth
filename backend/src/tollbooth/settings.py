@@ -8,8 +8,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TOLLBOOTH_", env_file=".env", extra="ignore")
 
-    admin_token: SecretStr
     encryption_key: SecretStr
+    admin_token: SecretStr | None = None
+    """Break-glass admin credential for scripts and first-time setup; optional once users exist."""
+    session_ttl_hours: float = 168.0
+    cookie_secure: bool | None = None
+    """Mark the session cookie Secure; unset means secure whenever the request came over HTTPS."""
     database_url: str = "sqlite+aiosqlite:///./data/tollbooth.db"
     auto_migrate: bool = True
     pricing_file: Path = Path("pricing.toml")

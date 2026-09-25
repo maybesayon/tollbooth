@@ -11,16 +11,16 @@ from tollbooth.api.alert_schemas import (
     ChannelOut,
     ChannelTestResult,
 )
-from tollbooth.deps import State, require_admin
+from tollbooth.deps import Editor, State, require_viewer
 from tollbooth.domain import Channel, ChannelType
 from tollbooth.repositories.base import DuplicateNameError
 from tollbooth.security import new_id
 
-router = APIRouter(prefix="/admin", tags=["alerts"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin", tags=["alerts"], dependencies=[Depends(require_viewer)])
 
 
 @router.post("/channels", status_code=status.HTTP_201_CREATED)
-async def create_channel(body: ChannelCreate, state: State) -> ChannelCreated:
+async def create_channel(body: ChannelCreate, state: State, principal: Editor) -> ChannelCreated:
     url = str(body.url)
     channel = Channel(
         id=new_id(),
@@ -47,7 +47,7 @@ async def list_channels(state: State) -> list[ChannelOut]:
 
 
 @router.delete("/channels/{channel_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_channel(channel_id: str, state: State) -> Response:
+async def delete_channel(channel_id: str, state: State, principal: Editor) -> Response:
     if not await state.channels.delete(channel_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "channel not found")
     state.budget_tracker.invalidate()
@@ -55,7 +55,7 @@ async def delete_channel(channel_id: str, state: State) -> Response:
 
 
 @router.post("/channels/{channel_id}/test")
-async def test_channel(channel_id: str, state: State) -> ChannelTestResult:
+async def test_channel(channel_id: str, state: State, principal: Editor) -> ChannelTestResult:
     channel = await state.channels.get(channel_id)
     if channel is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "channel not found")
