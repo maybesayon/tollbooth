@@ -57,8 +57,21 @@
 
 @media (max-width: 640px) {
   .topbar-inner {
-    gap: 8px;
-    padding: 0 16px;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    height: auto;
+    padding: 8px 16px 4px;
+  }
+
+  .nav {
+    order: 3;
+    flex-basis: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .account-link {
+    margin-left: auto;
   }
 
   .brand {
@@ -67,5 +80,15 @@
 
   .content {
     padding: 16px;
+  }
+}
+
+.account-link {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .account-link .muted {
+    display: none;
   }
 }
