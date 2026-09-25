@@ -11,6 +11,7 @@ from tollbooth.alerts import AlertManager
 from tollbooth.api import (
     admin_routes,
     alert_routes,
+    audit_routes,
     auth_routes,
     budget_routes,
     ledger_routes,
@@ -32,6 +33,7 @@ from tollbooth.repositories.sql import (
 )
 from tollbooth.repositories.sql_auth import (
     SqlApiTokenRepository,
+    SqlAuditRepository,
     SqlSessionRepository,
     SqlUserRepository,
 )
@@ -91,6 +93,7 @@ def create_app(
                 sessions=SqlSessionRepository(engine),
                 api_tokens=SqlApiTokenRepository(engine),
                 login_throttle=LoginThrottle(),
+                audit=SqlAuditRepository(engine),
             )
             try:
                 yield
@@ -118,6 +121,7 @@ def create_app(
     app.include_router(alert_routes.router)
     app.include_router(auth_routes.router)
     app.include_router(user_routes.router)
+    app.include_router(audit_routes.router)
     app.include_router(proxy_routes.router)
     if resolved.dashboard_dir is not None:
         mount_dashboard(app, resolved.dashboard_dir)

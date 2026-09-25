@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any
 
@@ -5,8 +6,8 @@ from sqlalchemy import Row, delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from tollbooth.db import api_tokens, sessions, users
-from tollbooth.domain import ApiToken, Role, User
+from tollbooth.db import api_tokens, audit_log, sessions, users
+from tollbooth.domain import ApiToken, AuditEvent, Role, User
 from tollbooth.repositories.base import DuplicateNameError
 
 _USER_COLUMNS = [c for c in users.c if c.name != "password_hash"]
@@ -211,6 +212,58 @@ class SqlApiTokenRepository:
             await conn.execute(
                 update(api_tokens).where(api_tokens.c.id == token_id).values(last_used_at=now)
             )
+
+
+class SqlAuditRepository:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+
+    async def record(self, event: AuditEvent) -> None:
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                insert(audit_log).values(
+                    id=event.id,
+                    created_at=event.created_at,
+                    actor_type=event.actor_type,
+                    actor_id=event.actor_id,
+                    actor_label=event.actor_label,
+                    action=event.action,
+                    target_type=event.target_type,
+                    target_id=event.target_id,
+                    details=json.dumps(event.details, sort_keys=True, default=str),
+                )
+            )
+
+    async def recent(
+        self,
+        limit: int = 100,
+        before: datetime | None = None,
+        action: str | None = None,
+        actor_id: str | None = None,
+    ) -> list[AuditEvent]:
+        query = select(audit_log).order_by(audit_log.c.created_at.desc(), audit_log.c.id.desc())
+        if before is not None:
+            query = query.where(audit_log.c.created_at < before)
+        if action is not None:
+            query = query.where(audit_log.c.action == action)
+        if actor_id is not None:
+            query = query.where(audit_log.c.actor_id == actor_id)
+        async with self._engine.connect() as conn:
+            rows = await conn.execute(query.limit(limit))
+        return [
+            AuditEvent(
+                id=r.id,
+                created_at=r.created_at,
+                actor_type=r.actor_type,
+                actor_id=r.actor_id,
+                actor_label=r.actor_label,
+                action=r.action,
+                target_type=r.target_type,
+                target_id=r.target_id,
+                details=json.loads(r.details),
+            )
+            for r in rows
+        ]
 
 
 def _user_values(user: User) -> dict[str, Any]:

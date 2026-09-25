@@ -10,6 +10,7 @@ from tollbooth.pricing import PricingTable
 from tollbooth.repositories.base import (
     AlertRepository,
     ApiTokenRepository,
+    AuditRepository,
     BudgetRepository,
     ChannelRepository,
     CredentialRepository,
@@ -41,3 +42,4 @@ class AppState:
     sessions: SessionRepository
     api_tokens: ApiTokenRepository
     login_throttle: LoginThrottle
+    audit: AuditRepository
