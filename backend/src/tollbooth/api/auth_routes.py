@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
+from tollbooth import audit
 from tollbooth.accounts import create_user
 from tollbooth.api.auth_schemas import (
     ApiTokenCreate,
@@ -56,6 +57,14 @@ async def setup(body: SetupIn, request: Request, response: Response, state: Stat
     user = await create_user(
         state.users, body.email, body.name, Role.ADMIN, body.password.get_secret_value()
     )
+    await audit.record(
+        state.audit,
+        Principal(role=Role.ADMIN, via=Via.ADMIN_TOKEN),
+        "auth.setup_completed",
+        "user",
+        user.id,
+        {"email": user.email},
+    )
     return await _start_session(user, request, response, state)
 
 
@@ -64,6 +73,13 @@ async def login(body: LoginIn, request: Request, response: Response, state: Stat
     address = request.client.host if request.client else "unknown"
     throttle = state.login_throttle
     if wait := throttle.retry_after(body.email, address):
+        await audit.record(
+            state.audit,
+            None,
+            "auth.login_throttled",
+            details={"email": body.email, "address": address},
+            actor_label=body.email,
+        )
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "too many failed sign-in attempts; try again later",
@@ -74,8 +90,17 @@ async def login(body: LoginIn, request: Request, response: Response, state: Stat
     valid = await verify_password(password_hash, body.password.get_secret_value())
     if user is None or not valid or not user.active:
         throttle.failed(body.email, address)
+        await audit.record(
+            state.audit,
+            None,
+            "auth.login_failed",
+            details={"email": body.email, "address": address},
+            actor_label=body.email,
+        )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, INVALID_LOGIN)
     throttle.succeeded(body.email)
+    session_principal = Principal(role=user.role, via=Via.SESSION, user=user)
+    await audit.record(state.audit, session_principal, "auth.login", details={"address": address})
     return await _start_session(user, request, response, state)
 
 
@@ -83,6 +108,7 @@ async def login(body: LoginIn, request: Request, response: Response, state: Stat
 async def logout(principal: CurrentPrincipal, request: Request, state: State) -> Response:
     if principal.session_hash is not None:
         await state.sessions.delete(principal.session_hash)
+        await audit.record(state.audit, principal, "auth.logout")
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(SESSION_COOKIE, path="/", samesite="strict", httponly=True)
     return response
@@ -106,6 +132,7 @@ async def change_password(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "password must not be the email")
     await state.users.set_password(user.id, await hash_password(new_password), datetime.now(UTC))
     await state.sessions.delete_for_user(user.id, keep=principal.session_hash)
+    await audit.record(state.audit, principal, "auth.password_changed", "user", user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -129,6 +156,14 @@ async def create_token(
         created_at=datetime.now(UTC),
     )
     await state.api_tokens.create(token, token_hash(plaintext))
+    await audit.record(
+        state.audit,
+        principal,
+        "api_token.created",
+        "api_token",
+        token.id,
+        {"name": token.name, "prefix": token.prefix},
+    )
     return ApiTokenCreated(**ApiTokenOut.of(token).model_dump(), token=plaintext)
 
 
@@ -137,6 +172,7 @@ async def delete_token(token_id: str, principal: CurrentPrincipal, state: State)
     user = _user_of(principal)
     if not await state.api_tokens.delete(user.id, token_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "token not found")
+    await audit.record(state.audit, principal, "api_token.deleted", "api_token", token_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

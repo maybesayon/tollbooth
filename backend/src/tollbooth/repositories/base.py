@@ -5,6 +5,7 @@ from typing import Protocol
 from tollbooth.domain import (
     Alert,
     ApiToken,
+    AuditEvent,
     Budget,
     Channel,
     Delivery,
@@ -196,3 +197,17 @@ class ApiTokenRepository(Protocol):
     async def delete(self, user_id: str, token_id: str) -> bool: ...
 
     async def touch(self, token_id: str, now: datetime) -> None: ...
+
+
+class AuditRepository(Protocol):
+    async def record(self, event: AuditEvent) -> None: ...
+
+    async def recent(
+        self,
+        limit: int = 100,
+        before: datetime | None = None,
+        action: str | None = None,
+        actor_id: str | None = None,
+    ) -> list[AuditEvent]:
+        """Newest first; `before` pages by created_at."""
+        ...

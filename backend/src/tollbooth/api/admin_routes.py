@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from tollbooth import audit
 from tollbooth.api.schemas import (
     CredentialCreate,
     CredentialOut,
@@ -23,6 +24,14 @@ async def create_credential(
         credential = await state.credentials.create(body.name, body.provider, encrypted)
     except DuplicateNameError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, "credential name already exists") from e
+    await audit.record(
+        state.audit,
+        principal,
+        "credential.created",
+        "credential",
+        credential.id,
+        {"name": credential.name, "provider": credential.provider.value},
+    )
     return CredentialOut.of(credential)
 
 
@@ -42,6 +51,14 @@ async def create_key(body: KeyCreate, state: State, principal: Editor) -> KeyCre
         key_hash=new_key.key_hash,
         key_prefix=new_key.display_prefix,
         credential_id=body.credential_id,
+    )
+    await audit.record(
+        state.audit,
+        principal,
+        "key.created",
+        "key",
+        key.id,
+        {"name": key.name, "team": key.team, "key_prefix": key.key_prefix},
     )
     return KeyCreated(**KeyOut.of(key).model_dump(), key=new_key.plaintext)
 
@@ -67,4 +84,7 @@ async def revoke_key(key_id: str, state: State, principal: Editor) -> KeyOut:
     key = await state.keys.revoke(key_id)
     if key is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "key not found")
+    await audit.record(
+        state.audit, principal, "key.revoked", "key", key.id, {"name": key.name, "team": key.team}
+    )
     return KeyOut.of(key)

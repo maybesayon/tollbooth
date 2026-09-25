@@ -113,6 +113,8 @@ People sign in to the dashboard with email and password. Each account has one ro
 
 The dashboard session is an HttpOnly, `SameSite=Strict` cookie that lasts 7 days (`TOLLBOOTH_SESSION_TTL_HOURS`). Behind HTTPS, set `TOLLBOOTH_COOKIE_SECURE=true` unless Tollbooth itself sees the HTTPS scheme. Failed sign-ins are throttled per email and per client address. Changing a password signs out that user's other sessions, and disabling a user ends their sessions and stops their API tokens.
 
+Admins can read an audit log of sign-ins (including failed ones) and every change to keys, credentials, budgets, channels, users, and API tokens: who did it, when, and what changed. Entries never include secrets such as keys, passwords, tokens, or channel URLs.
+
 Scripts use personal API tokens (`tbu_â€¦`, created under your account, with your role) as `Authorization: Bearer`. `TOLLBOOTH_ADMIN_TOKEN` is optional. When set, it works as a break-glass admin credential and lets the first admin account be created from the dashboard.
 
 ## Admin API
@@ -143,6 +145,7 @@ Admin routes take an API token (or the admin token) as `Authorization: Bearer â€
 | `GET` | `/auth/me` | The signed-in user and role |
 | `POST` | `/auth/password` | Change your password (`current_password`, `new_password`, at least 12 characters) |
 | `GET` / `POST` / `DELETE` | `/auth/tokens` | Your API tokens; a new token is shown once |
+| `GET` | `/admin/audit` | Audit log, newest first (admin): `?action=`, `?actor_id=`, `?limit=`, `?before=` |
 | `GET` | `/admin/alerts` | Recent threshold alerts with per-channel delivery status (`?budget_id=`, `?limit=`) |
 
 Budgets take `channel_ids` to choose where their alerts go.

@@ -235,6 +235,21 @@ api_tokens = Table(
 )
 
 
+audit_log = Table(
+    "audit_log",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("created_at", UTCDateTime, nullable=False, index=True),
+    Column("actor_type", String(16), nullable=False),
+    Column("actor_id", String(32), nullable=True, index=True),
+    Column("actor_label", String(320), nullable=False),
+    Column("action", String(64), nullable=False, index=True),
+    Column("target_type", String(32), nullable=True),
+    Column("target_id", String(64), nullable=True),
+    Column("details", Text, nullable=False),
+)
+
+
 def create_engine(database_url: str) -> AsyncEngine:
     url = make_url(database_url)
     backend = url.get_backend_name()

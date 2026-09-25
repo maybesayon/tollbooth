@@ -81,6 +81,9 @@ Auth (`auth.py`, `deps.py`, `api/auth_routes.py`, `api/user_routes.py`):
   (hashed off the event loop). Cookie-authenticated unsafe requests need `X-Tollbooth-CSRF: 1`.
 - Login failures are indistinguishable (unknown email still costs a hash) and throttled in memory.
 - The last active admin can't be demoted or disabled, and admins can't demote themselves.
+- Every state-changing admin/auth route calls `audit.record(...)` with the principal and non-secret
+  details (use `audit.changes` for before/after diffs). Audit writes are best effort: logged on
+  failure, never blocking the action. Never put keys, passwords, tokens, or URLs in details.
 
 ## Conventions
 

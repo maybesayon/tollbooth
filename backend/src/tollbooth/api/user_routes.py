@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from tollbooth import audit
 from tollbooth.accounts import create_user
 from tollbooth.api.auth_schemas import (
     PasswordReset,
@@ -33,6 +34,14 @@ async def add_user(body: UserCreate, state: State, principal: Admin) -> UserCrea
         user = await create_user(state.users, body.email, body.name, body.role, password)
     except DuplicateNameError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, "a user with that email exists") from e
+    await audit.record(
+        state.audit,
+        principal,
+        "user.created",
+        "user",
+        user.id,
+        {"email": user.email, "role": user.role.value, "temporary_password": temporary is not None},
+    )
     return UserCreated(**UserOut.of(user).model_dump(), temporary_password=temporary)
 
 
@@ -67,6 +76,14 @@ async def update_user(user_id: str, body: UserUpdate, state: State, principal: A
     await state.users.update(updated)
     if not updated.active:
         await state.sessions.delete_for_user(user.id)
+    await audit.record(
+        state.audit,
+        principal,
+        "user.updated",
+        "user",
+        user.id,
+        {"email": user.email, "changes": audit.changes(_audit_view(user), _audit_view(updated))},
+    )
     return UserOut.of(updated)
 
 
@@ -76,6 +93,9 @@ async def reset_password(user_id: str, state: State, principal: Admin) -> Passwo
     temporary = new_temporary_password()
     await state.users.set_password(user.id, await hash_password(temporary), datetime.now(UTC))
     await state.sessions.delete_for_user(user.id)
+    await audit.record(
+        state.audit, principal, "user.password_reset", "user", user.id, {"email": user.email}
+    )
     return PasswordReset(temporary_password=temporary)
 
 
@@ -84,3 +104,7 @@ async def _existing(user_id: str, state: State) -> User:
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
     return user
+
+
+def _audit_view(user: User) -> dict[str, object]:
+    return {"name": user.name, "role": user.role.value, "active": user.active}
