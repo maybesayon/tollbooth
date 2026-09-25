@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
@@ -244,3 +244,18 @@ class ApiToken:
     prefix: str
     created_at: datetime
     last_used_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class AuditEvent:
+    """Who changed what. Details hold identifiers and settings, never secrets or content."""
+
+    id: str
+    created_at: datetime
+    actor_type: str
+    actor_id: str | None
+    actor_label: str
+    action: str
+    target_type: str | None = None
+    target_id: str | None = None
+    details: dict[str, object] = field(default_factory=dict)

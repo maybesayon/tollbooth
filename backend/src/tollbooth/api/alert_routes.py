@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
+from tollbooth import audit
 from tollbooth.alerts import new_signing_secret, url_hint
 from tollbooth.api.alert_schemas import (
     AlertOut,
@@ -38,6 +39,14 @@ async def create_channel(body: ChannelCreate, state: State, principal: Editor) -
         )
     except DuplicateNameError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, "channel name already exists") from e
+    await audit.record(
+        state.audit,
+        principal,
+        "channel.created",
+        "channel",
+        channel.id,
+        {"name": channel.name, "type": channel.type.value, "url_hint": channel.url_hint},
+    )
     return ChannelCreated(**ChannelOut.of(channel).model_dump(), signing_secret=secret)
 
 
@@ -48,9 +57,13 @@ async def list_channels(state: State) -> list[ChannelOut]:
 
 @router.delete("/channels/{channel_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_channel(channel_id: str, state: State, principal: Editor) -> Response:
-    if not await state.channels.delete(channel_id):
+    channel = await state.channels.get(channel_id)
+    if channel is None or not await state.channels.delete(channel_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "channel not found")
     state.budget_tracker.invalidate()
+    await audit.record(
+        state.audit, principal, "channel.deleted", "channel", channel.id, {"name": channel.name}
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -60,6 +73,14 @@ async def test_channel(channel_id: str, state: State, principal: Editor) -> Chan
     if channel is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "channel not found")
     result = await state.alert_manager.send_test(channel)
+    await audit.record(
+        state.audit,
+        principal,
+        "channel.tested",
+        "channel",
+        channel.id,
+        {"name": channel.name, "ok": result.ok, "error": result.error},
+    )
     return ChannelTestResult(ok=result.ok, status_code=result.status_code, error=result.error)
 
 
