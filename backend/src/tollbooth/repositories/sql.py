@@ -532,8 +532,9 @@ def _metrics() -> list[ColumnElement[Any]]:
 
 
 def _metric_values(row: Row[Any]) -> dict[str, int]:
+    # int(): Postgres returns SUM(bigint) as numeric, which arrives as Decimal.
     return {
-        name: getattr(row, name)
+        name: int(getattr(row, name))
         for name in (
             "requests",
             "input_tokens",

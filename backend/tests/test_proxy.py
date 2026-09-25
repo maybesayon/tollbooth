@@ -5,7 +5,7 @@ from typing import Any
 import anyio
 import httpx
 import pytest
-from conftest import MakeKey
+from conftest import MakeKey, persisted_bytes
 from fastapi import FastAPI
 from mock_providers import (
     ANTHROPIC_EXPECTED_NANOUSD,
@@ -39,10 +39,6 @@ ANTHROPIC_USAGE = Usage(
     cache_write_1h_tokens=1000,
 )
 OPENAI_USAGE = Usage(input_tokens=1134, output_tokens=567, cache_read_tokens=100)
-
-
-def _read_all_files(directory: Path) -> bytes:
-    return b"".join(p.read_bytes() for p in sorted(directory.iterdir()))
 
 
 async def _only_entry(state: AppState) -> LedgerEntry:
@@ -414,11 +410,29 @@ async def test_no_prompt_or_response_content_is_persisted(
     )
     assert len(await state.ledger.page(LedgerFilter())) == 7
 
-    await state.engine.dispose()
-    stored = _read_all_files(tmp_path)
+    stored = await persisted_bytes(state.engine, tmp_path)
     assert stored
     for secret in (SECRET_PROMPT, SECRET_OUTPUT, OPENAI_REAL_KEY, ANTHROPIC_REAL_KEY):
         assert secret.encode() not in stored
         assert secret not in caplog.text
     for plaintext_key in (openai_key, anthropic_key):
         assert plaintext_key.encode() not in stored
+
+
+@pytest.mark.parametrize(
+    ("model", "stored"),
+    [("m" * 300, "m" * 200), ("gpt\u00004o", "gpt4o")],
+)
+async def test_hostile_model_names_are_still_metered(
+    client: httpx.AsyncClient, make_key: MakeKey, state: AppState, model: str, stored: str
+) -> None:
+    key = await make_key(Provider.ANTHROPIC)
+    response = await client.post(
+        "/v1/messages",
+        json={**ANTHROPIC_BODY, "model": model},
+        headers={"x-api-key": key, **ANTHROPIC_HEADERS},
+    )
+    assert response.status_code == 200
+    entry = await _only_entry(state)
+    assert entry.model == stored
+    assert entry.usage == ANTHROPIC_USAGE

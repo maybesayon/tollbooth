@@ -90,9 +90,9 @@ curl -s "localhost:8080/admin/spend?group_by=team&start=2026-09-01" -H "$ADMIN"
                                               └─────────────────┬──────────────────┘
                                                                 │
                                                      ┌──────────▼──────────┐
-                                                     │ SQLite (repository  │  ◀── /admin API: keys,
-                                                     │ interface; Postgres │      credentials, spend
-                                                     │ later)              │
+                                                     │ SQLite or Postgres  │  ◀── /admin API: keys,
+                                                     │ (repository         │      credentials, spend
+                                                     │ interface)          │
                                                      └─────────────────────┘
 ```
 
@@ -163,7 +163,7 @@ Settings are read from environment variables; see [`.env.example`](.env.example)
 |---|---|---|
 | `TOLLBOOTH_ADMIN_TOKEN` | required | Bearer token for `/admin` |
 | `TOLLBOOTH_ENCRYPTION_KEY` | required | Fernet key(s) for provider keys. To rotate, list the new key first: `new,old`. |
-| `TOLLBOOTH_DATABASE_URL` | `sqlite+aiosqlite:///./data/tollbooth.db` | |
+| `TOLLBOOTH_DATABASE_URL` | `sqlite+aiosqlite:///./data/tollbooth.db` | Or `postgresql+asyncpg://…` |
 | `TOLLBOOTH_AUTO_MIGRATE` | `true` | Run database migrations on startup |
 | `TOLLBOOTH_PRICING_FILE` | `pricing.toml` | |
 | `TOLLBOOTH_OPENAI_BASE_URL` | `https://api.openai.com` | |
@@ -171,6 +171,25 @@ Settings are read from environment variables; see [`.env.example`](.env.example)
 | `TOLLBOOTH_UPSTREAM_CONNECT_TIMEOUT` / `_READ_TIMEOUT` | `10` / `600` | Seconds |
 | `TOLLBOOTH_DASHBOARD_DIR` | unset | Built dashboard to serve at `/dashboard` |
 | `TOLLBOOTH_LOG_LEVEL` | `INFO` | |
+
+## Database
+
+SQLite is the default and needs no setup. For several replicas or larger volumes, use Postgres by setting `TOLLBOOTH_DATABASE_URL=postgresql+asyncpg://user:password@host:5432/tollbooth` (URL-encode special characters in the password). Migrations run on startup either way.
+
+With Docker, the Postgres override starts a database next to Tollbooth. Set `POSTGRES_PASSWORD` in `.env`, then:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+```
+
+To move an existing SQLite install to Postgres, stop Tollbooth and copy the data into the empty database. The target is migrated first, and the copy runs in one transaction, so a failure leaves it empty:
+
+```bash
+docker compose stop tollbooth
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml run --rm tollbooth tollbooth copy-db \
+  sqlite+aiosqlite:////app/data/tollbooth.db \
+  postgresql+asyncpg://tollbooth:PASSWORD@postgres:5432/tollbooth
+```
 
 ## Pricing
 
@@ -190,14 +209,14 @@ uv run ruff check && uv run ruff format --check
 TOLLBOOTH_ADMIN_TOKEN=dev TOLLBOOTH_ENCRYPTION_KEY=... uv run uvicorn tollbooth.main:create_app --factory --reload
 ```
 
-Tests run against in-process fakes of both provider APIs, so they need no network access or API keys. See [`CLAUDE.md`](CLAUDE.md) for conventions and the roadmap.
+Tests run against in-process fakes of both provider APIs, so they need no network access or API keys. They use SQLite by default; set `TOLLBOOTH_TEST_POSTGRES_URL=postgresql+asyncpg://user@localhost:5432/postgres` to run the same suite against Postgres (each test gets a fresh database; the user needs `CREATEDB`). See [`CLAUDE.md`](CLAUDE.md) for conventions and the roadmap.
 
 ## Roadmap
 
 1. **Metering proxy** (done)
 2. **Web dashboard** (done)
 3. **Budgets and alerts** (done)
-4. Postgres and multi-user admin
+4. **Postgres** (done) and multi-user admin
 5. Model routing
 
 ## License
