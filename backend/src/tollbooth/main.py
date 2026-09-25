@@ -1,10 +1,11 @@
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 
 from tollbooth.alerts import AlertManager
 from tollbooth.api import admin_routes, alert_routes, budget_routes, ledger_routes, proxy_routes
@@ -23,6 +24,8 @@ from tollbooth.repositories.sql import (
 from tollbooth.security import SecretBox
 from tollbooth.settings import Settings
 from tollbooth.state import AppState
+
+CallNext = Callable[[Request], Awaitable[Response]]
 
 
 def create_app(
@@ -78,6 +81,14 @@ def create_app(
                 await engine.dispose()
 
     app = FastAPI(title="Tollbooth", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def reject_nul(request: Request, call_next: CallNext) -> Response:
+        # Postgres text cannot hold NUL, and path and query values reach queries as given.
+        values = [request.url.path, *(x for kv in request.query_params.multi_items() for x in kv)]
+        if any("\x00" in value for value in values):
+            return JSONResponse({"detail": "NUL characters are not allowed"}, status_code=400)
+        return await call_next(request)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

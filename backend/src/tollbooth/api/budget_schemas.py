@@ -4,6 +4,7 @@ from typing import Annotated, Self
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
+from tollbooth.api.fields import Name, Text
 from tollbooth.api.ledger_schemas import USD
 from tollbooth.budgets import BudgetUsage
 from tollbooth.cost import NANOUSD_PER_USD, nanousd_to_usd
@@ -28,9 +29,8 @@ def _thresholds(value: list[int]) -> list[int]:
 
 LimitUSD = Annotated[Decimal, AfterValidator(_limit)]
 Thresholds = Annotated[list[int], Field(max_length=10), AfterValidator(_thresholds)]
-Name = Annotated[str, Field(min_length=1, max_length=200, pattern=r"\S")]
 ChannelIds = Annotated[
-    list[str],
+    list[Text],
     Field(max_length=20, description="Alert channels notified when a threshold is crossed."),
     AfterValidator(lambda ids: sorted(set(ids))),
 ]
@@ -40,7 +40,7 @@ class Scope(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: BudgetScope
-    value: str | None = Field(None, description="Team name or virtual key id; omit for global.")
+    value: Text | None = Field(None, description="Team name or virtual key id; omit for global.")
 
     @model_validator(mode="after")
     def _value_matches_type(self) -> Self:

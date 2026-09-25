@@ -11,6 +11,8 @@ from tollbooth.state import AppState
 
 logger = logging.getLogger("tollbooth.ledger")
 
+UNKNOWN_MODEL = "unknown"
+
 
 @dataclass
 class RequestMeter:
@@ -43,7 +45,7 @@ class RequestMeter:
         if self._recorded:
             return
         self._recorded = True
-        billed_model = model or self.requested_model
+        billed_model = _fit(model or self.requested_model) or UNKNOWN_MODEL
         price = self.state.pricing.lookup(self.adapter.provider, billed_model)
         usage = usage or Usage()
         entry = LedgerEntry(
@@ -60,8 +62,8 @@ class RequestMeter:
             ttfb_ms=_ms(self._first_byte - self._start) if self._first_byte else None,
             usage=usage,
             cost_nanousd=cost_nanousd(usage, price) if price else None,
-            error_type=error_type,
-            upstream_request_id=upstream_request_id,
+            error_type=_fit(error_type),
+            upstream_request_id=_fit(upstream_request_id),
         )
         try:
             await self.state.ledger.record(entry)
@@ -86,6 +88,14 @@ class RequestMeter:
             entry.cost_nanousd,
             entry.latency_ms,
         )
+
+
+def _fit(value: str | None, limit: int = 200) -> str | None:
+    """Make client- or provider-supplied text storable everywhere: Postgres rejects NUL and
+    enforces column lengths, and a failed ledger write would leave the request unmetered."""
+    if value is None:
+        return None
+    return value.replace("\x00", "")[:limit]
 
 
 def _ms(seconds: float) -> int:

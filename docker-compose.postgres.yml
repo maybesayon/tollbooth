@@ -1,0 +1,28 @@
+# Run Tollbooth on Postgres instead of SQLite:
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+# Set POSTGRES_PASSWORD in .env (it is also used in the connection URL below).
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: tollbooth
+      POSTGRES_DB: tollbooth
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "tollbooth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  tollbooth:
+    environment:
+      TOLLBOOTH_DATABASE_URL: postgresql+asyncpg://tollbooth:${POSTGRES_PASSWORD}@postgres:5432/tollbooth
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

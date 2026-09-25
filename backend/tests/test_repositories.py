@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import create_engine as create_sync_engine
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tollbooth.db import metadata
@@ -20,11 +19,11 @@ from tollbooth.security import new_id
 T0 = datetime(2026, 9, 1, tzinfo=UTC)
 
 
-def test_migrations_match_metadata(engine: AsyncEngine, database_url: str) -> None:
-    sync_engine = create_sync_engine(database_url.replace("+aiosqlite", ""))
-    with sync_engine.connect() as conn:
-        diff = compare_metadata(MigrationContext.configure(conn), metadata)
-    sync_engine.dispose()
+async def test_migrations_match_metadata(engine: AsyncEngine) -> None:
+    async with engine.connect() as conn:
+        diff = await conn.run_sync(
+            lambda sync_conn: compare_metadata(MigrationContext.configure(sync_conn), metadata)
+        )
     assert diff == []
 
 
@@ -111,6 +110,8 @@ async def test_spend_grouping_and_filters(engine: AsyncEngine) -> None:
     ]
     ads = by_team[1]
     assert (ads.input_tokens, ads.cache_write_tokens) == (11, 7)
+    for value in vars(ads).values():
+        assert type(value) in (int, str)
 
     by_provider = await repo.spend(GroupBy.PROVIDER, LedgerFilter())
     assert {r.group: r.cost_nanousd for r in by_provider} == {"openai": 3500, "anthropic": 0}

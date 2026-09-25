@@ -4,7 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from conftest import MakeKey
+from conftest import MakeKey, persisted_bytes
 from fake_webhooks import WebhookReceiver
 
 from tollbooth.alerts import (
@@ -29,10 +29,6 @@ from tollbooth.state import AppState
 WEBHOOK_URL = "https://hooks.example.com/tollbooth/abc123-secret-path"
 SLACK_URL = "https://hooks.slack.test/services/T000/B000/slack-secret-token"
 OPENAI_BODY = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "hi"}]}
-
-
-def _read_files(directory: Path) -> bytes:
-    return b"".join(p.read_bytes() for p in directory.iterdir() if p.is_file())
 
 
 async def _channel(client: httpx.AsyncClient, headers: dict[str, str], **body: str) -> dict:
@@ -72,8 +68,7 @@ class TestChannels:
         listed = (await client.get("/admin/channels", headers=admin_headers)).json()
         assert listed == [{k: v for k, v in created.items() if k != "signing_secret"}]
 
-        await state.engine.dispose()
-        stored = _read_files(tmp_path)
+        stored = await persisted_bytes(state.engine, tmp_path)
         assert b"abc123-secret-path" not in stored
         assert created["signing_secret"].encode() not in stored
 

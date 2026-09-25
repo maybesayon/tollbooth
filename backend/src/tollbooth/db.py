@@ -188,12 +188,21 @@ alert_deliveries = Table(
 
 def create_engine(database_url: str) -> AsyncEngine:
     url = make_url(database_url)
-    if url.get_backend_name() == "sqlite" and url.database not in (None, "", ":memory:"):
-        Path(url.database).parent.mkdir(parents=True, exist_ok=True)
-    engine = create_async_engine(url)
-    if url.get_backend_name() == "sqlite":
+    backend = url.get_backend_name()
+    if backend == "sqlite":
+        if url.database not in (None, "", ":memory:"):
+            Path(url.database).parent.mkdir(parents=True, exist_ok=True)
+        engine = create_async_engine(url)
         event.listen(engine.sync_engine, "connect", _sqlite_pragmas)
-    return engine
+        return engine
+    if backend == "postgresql":
+        # date_trunc() buckets by the session time zone; reports are defined in UTC.
+        return create_async_engine(
+            url,
+            pool_pre_ping=True,
+            connect_args={"server_settings": {"timezone": "UTC"}},
+        )
+    raise ValueError(f"unsupported database backend: {backend} (use sqlite or postgresql)")
 
 
 def _sqlite_pragmas(dbapi_connection: Any, _: Any) -> None:

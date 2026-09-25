@@ -13,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from tollbooth.api.fields import Text
 from tollbooth.cost import nanousd_to_usd
 from tollbooth.domain import (
     GroupBy,
@@ -48,10 +49,10 @@ class LedgerQuery(BaseModel):
 
     start: UTCDatetime = Field(None, description="Inclusive. ISO 8601; naive values are UTC.")
     end: UTCDatetime = Field(None, description="Exclusive. ISO 8601; naive values are UTC.")
-    team: str | None = None
+    team: Text | None = None
     provider: Provider | None = None
-    model: str | None = None
-    key_id: str | None = None
+    model: Text | None = None
+    key_id: Text | None = None
     outcome: Outcome | None = None
 
     @model_validator(mode="after")

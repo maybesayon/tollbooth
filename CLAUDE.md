@@ -77,14 +77,21 @@ Alerts (`alerts.py`):
 
 - Python 3.12, full type hints, small modules, no decorative comments or banner comments.
 - Everything is async; one shared `httpx.AsyncClient` created in the lifespan.
-- Storage is accessed only through the repository Protocols in `repositories/base.py`, so the
-  Postgres implementation in Phase 4 is a driver/URL change plus any dialect fixes.
+- Storage is accessed only through the repository Protocols in `repositories/base.py`. The SQL
+  implementation runs on SQLite (default) and Postgres (`postgresql+asyncpg://`); both are tested.
+- Postgres rules: connections run in UTC (`db.create_engine`), `SUM(bigint)` returns Decimal so
+  aggregates are cast with `int()`, and text columns reject NUL and enforce lengths. Anything
+  client- or provider-supplied that reaches the ledger goes through `metering._fit`; API text uses
+  `api/fields.Name`/`Text`; a middleware rejects NUL in paths and query strings.
 - Settings come only from environment variables (see `.env.example`).
 - Schema changes: edit `db.py`, then autogenerate a migration and review it. Migrations use plain
   SQLAlchemy types (never import from `tollbooth`). `test_migrations_match_metadata` catches drift.
 - Tests use in-process mock providers (ASGI apps) injected into the upstream httpx client. No real
   API keys, no network. Cost assertions compare exact `Decimal` values.
 - Commands (run in `backend/`): `uv run ruff check`, `uv run ruff format`, `uv run pytest`.
+  `TOLLBOOTH_TEST_POSTGRES_URL=postgresql+asyncpg://user@host/postgres uv run pytest` runs the
+  suite on Postgres (a fresh database per test, cloned from a migrated template).
+- CLI: `tollbooth copy-db SOURCE TARGET` (`cli.py`, `copydb.py`).
 - Work on feature branches; open PRs into `main`; CI (ruff, pytest, docker build + smoke test) must pass.
 - Docker: build context is the repo root; the image runs `uvicorn tollbooth.main:create_app --factory`
   as a non-root user, with SQLite in the `/app/data` volume and `pricing.toml` mounted read-only.
@@ -110,5 +117,5 @@ Alerts (`alerts.py`):
   stacked spend chart, breakdown), key and credential management, request log.
 - **Phase 3** (done): budgets (soft/hard, per team/key/global, UTC day/week/month) and alerts
   (Slack + signed webhooks), with a dashboard Budgets page. (per team/key limits, soft/hard enforcement, notifications).
-- **Phase 4**: Postgres repository implementation, multi-user admin accounts and roles.
+- **Phase 4** (in progress): Postgres (done), multi-user admin accounts and roles.
 - **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).

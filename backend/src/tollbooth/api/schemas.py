@@ -1,11 +1,9 @@
 from datetime import datetime
-from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from tollbooth.api.fields import Name, Text
 from tollbooth.domain import Provider, ProviderCredential, VirtualKey
-
-Name = Annotated[str, Field(min_length=1, max_length=200, pattern=r"\S")]
 
 
 class CredentialCreate(BaseModel):
@@ -37,7 +35,7 @@ class KeyCreate(BaseModel):
 
     name: Name
     team: Name
-    credential_id: str
+    credential_id: Text
 
 
 class KeyOut(BaseModel):
@@ -46,7 +44,7 @@ class KeyOut(BaseModel):
     team: str
     key_prefix: str
     provider: Provider
-    credential_id: str
+    credential_id: Text
     created_at: datetime
     revoked_at: datetime | None
 
