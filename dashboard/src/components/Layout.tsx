@@ -4,6 +4,7 @@ import './Layout.css'
 
 const NAV = [
   { to: '/', label: 'Overview', end: true },
+  { to: '/budgets', label: 'Budgets', end: false },
   { to: '/keys', label: 'Keys', end: false },
   { to: '/requests', label: 'Requests', end: false },
 ]

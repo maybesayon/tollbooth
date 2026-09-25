@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { useAuth } from './auth/useAuth'
 import { Layout } from './components/Layout'
+import { BudgetsPage } from './pages/BudgetsPage'
 import { KeysPage } from './pages/KeysPage'
 import { LoginPage } from './pages/LoginPage'
 import { OverviewPage } from './pages/OverviewPage'
@@ -13,6 +14,7 @@ export function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<OverviewPage />} />
+        <Route path="budgets" element={<BudgetsPage />} />
         <Route path="keys" element={<KeysPage />} />
         <Route path="requests" element={<RequestsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

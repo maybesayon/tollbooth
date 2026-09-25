@@ -108,6 +108,7 @@ Alerts (`alerts.py`):
   virtual keys, request ledger, streaming metering, pricing config, admin API, Docker, CI.
 - **Phase 2** (done): React + TypeScript + Vite dashboard in `dashboard/`: overview (spend tiles,
   stacked spend chart, breakdown), key and credential management, request log.
-- **Phase 3** (in progress): budgets and alerts (backend done; dashboard next) (per team/key limits, soft/hard enforcement, notifications).
+- **Phase 3** (done): budgets (soft/hard, per team/key/global, UTC day/week/month) and alerts
+  (Slack + signed webhooks), with a dashboard Budgets page. (per team/key limits, soft/hard enforcement, notifications).
 - **Phase 4**: Postgres repository implementation, multi-user admin accounts and roles.
 - **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).

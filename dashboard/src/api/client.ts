@@ -10,7 +10,7 @@ export class ApiError extends Error {
 export type Params = Record<string, string | number | boolean | null | undefined>
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   params?: Params
   body?: unknown
   signal?: AbortSignal
@@ -42,6 +42,7 @@ export async function apiRequest<T>(
   if (!response.ok) {
     throw new ApiError(response.status, await errorMessage(response))
   }
+  if (response.status === 204) return null as T
   return (await response.json()) as T
 }
 
