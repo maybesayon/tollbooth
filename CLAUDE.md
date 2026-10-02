@@ -118,6 +118,7 @@ Auth (`auth.py`, `deps.py`, `api/auth_routes.py`, `api/user_routes.py`):
 - Colors are CSS tokens in `index.css` (light + dark). Chart series use `--series-1..7` in fixed
   order via `ColorRegistry` (color follows the entity), overflow folds into "Other". Status colors
   are reserved for badges, which always pair color with an icon and label.
+- Role-gated controls use `useAuth().can(role)`; the server enforces roles regardless.
 - Filters live in the URL search params. Tests use `test/fakeApi.ts` (stubbed fetch, per-path routes).
 - Commands (in `dashboard/`): `npm run lint`, `npm run format`, `npm run typecheck`, `npm test`.
 
@@ -129,6 +130,6 @@ Auth (`auth.py`, `deps.py`, `api/auth_routes.py`, `api/user_routes.py`):
   stacked spend chart, breakdown), key and credential management, request log.
 - **Phase 3** (done): budgets (soft/hard, per team/key/global, UTC day/week/month) and alerts
   (Slack + signed webhooks), with a dashboard Budgets page. (per team/key limits, soft/hard enforcement, notifications).
-- **Phase 4** (in progress): Postgres (done), multi-user accounts and roles (backend done), audit
-  log, dashboard sign-in and user management.
+- **Phase 4** (done): Postgres, multi-user accounts with roles, API tokens, audit log, dashboard
+  sign-in, settings, and user management.
 - **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).

@@ -1,7 +1,35 @@
-import type { Metrics, SpendReport, TimeseriesReport } from '../api/types'
+import type { Me, Metrics, Role, SpendReport, TimeseriesReport } from '../api/types'
 
 type Handler = (url: URL, init: RequestInit) => unknown
 export type Routes = Record<string, unknown>
+
+/** A route response with its own status code. */
+export class Reply {
+  readonly status: number
+  readonly body: unknown
+
+  constructor(status: number, body: unknown = null) {
+    this.status = status
+    this.body = body
+  }
+}
+
+export function me(role: Role = 'admin'): Me {
+  return {
+    user: {
+      id: 'u1',
+      email: `${role}@example.com`,
+      name: `Ada ${role}`,
+      role,
+      active: true,
+      created_at: '2026-09-01T00:00:00Z',
+      last_login_at: null,
+      disabled_at: null,
+    },
+    role,
+    via: 'session',
+  }
+}
 
 export interface FakeApi {
   calls: { url: URL; init: RequestInit }[]
@@ -18,8 +46,13 @@ export function fakeApi(routes: Routes, status = 200): FakeApi {
       calls.push({ url, init })
       const route = routes[url.pathname]
       if (route === undefined) return new Response('{"detail":"not found"}', { status: 404 })
-      const body = typeof route === 'function' ? (route as Handler)(url, init) : route
-      return new Response(JSON.stringify(body), { status })
+      const result = typeof route === 'function' ? (route as Handler)(url, init) : route
+      if (result instanceof Reply) {
+        if (result.status === 204) return new Response(null, { status: 204 })
+        return new Response(JSON.stringify(result.body), { status: result.status })
+      }
+      if (result === null && init.method === 'DELETE') return new Response(null, { status: 204 })
+      return new Response(JSON.stringify(result), { status })
     }),
   )
   return {
@@ -66,7 +99,15 @@ export function timeseries(points: TimeseriesReport['points'] = []): TimeseriesR
   return { interval: 'day', group_by: 'team', start: '', end: '', currency: 'USD', points }
 }
 
+export const SIGNED_OUT: Routes = {
+  '/auth/me': new Reply(401, { detail: 'authentication required' }),
+  '/auth/setup': { needs_setup: false, setup_with_admin_token: true },
+}
+
 export const EMPTY_ROUTES: Routes = {
+  '/auth/me': me('admin'),
+  '/auth/setup': { needs_setup: false, setup_with_admin_token: true },
+  '/auth/logout': new Reply(204),
   '/admin/credentials': [],
   '/admin/keys': [],
   '/admin/spend': spendReport(),

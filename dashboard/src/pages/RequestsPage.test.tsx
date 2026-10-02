@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { LedgerRequest } from '../api/types'
 import { EMPTY_ROUTES, fakeApi } from '../test/fakeApi'
-import { renderApp, signIn } from '../test/render'
+import { renderApp } from '../test/render'
 
 function request(overrides: Partial<LedgerRequest>): LedgerRequest {
   return {
@@ -41,7 +41,6 @@ const KEYS = [
   },
 ]
 
-beforeEach(() => signIn())
 afterEach(() => vi.unstubAllGlobals())
 
 describe('requests page', () => {

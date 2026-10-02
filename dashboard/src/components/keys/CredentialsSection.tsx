@@ -3,9 +3,11 @@ import { ApiError } from '../../api/client'
 import { useCreateCredential, useCredentials } from '../../api/queries'
 import type { Provider } from '../../api/types'
 import { formatDateTimeUTC, formatDateUTC } from '../../lib/format'
+import { useAuth } from '../../auth/useAuth'
 import { ProviderName } from '../ProviderName'
 
 export function CredentialsSection() {
+  const { can } = useAuth()
   const credentials = useCredentials()
   const [adding, setAdding] = useState(false)
 
@@ -18,7 +20,7 @@ export function CredentialsSection() {
             Real provider API keys, stored encrypted. They are never shown again after saving.
           </p>
         </div>
-        {!adding && (
+        {!adding && can('admin') && (
           <button type="button" className="button" onClick={() => setAdding(true)}>
             Add credential
           </button>
