@@ -9,6 +9,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/admin': api,
+      '/auth': api,
       '/healthz': api,
     },
   },

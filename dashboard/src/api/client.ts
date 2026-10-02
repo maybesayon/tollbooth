@@ -25,16 +25,19 @@ export function buildPath(path: string, params: Params = {}): string {
   return qs ? `${path}?${qs}` : path
 }
 
+/** The server only accepts cookie-authenticated writes that carry this header. */
+export const CSRF_HEADER = 'X-Tollbooth-CSRF'
+
 export async function apiRequest<T>(
-  token: string,
   path: string,
   { method = 'GET', params, body, signal }: RequestOptions = {},
 ): Promise<T> {
   const response = await fetch(buildPath(path, params), {
     method,
     signal,
+    credentials: 'same-origin',
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(method === 'GET' ? {} : { [CSRF_HEADER]: '1' }),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),

@@ -2,11 +2,13 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useCreateKey, useCredentials, useKeys, useRevokeKey } from '../../api/queries'
 import type { CreatedKey, VirtualKey } from '../../api/types'
 import { formatDateTimeUTC, formatDateUTC } from '../../lib/format'
+import { useAuth } from '../../auth/useAuth'
 import { Badge } from '../Badge'
 import { PROVIDER_NAMES } from '../../lib/labels'
 import { ProviderName } from '../ProviderName'
 
 export function KeysSection() {
+  const { can } = useAuth()
   const [showRevoked, setShowRevoked] = useState(false)
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<CreatedKey | null>(null)
@@ -33,7 +35,7 @@ export function KeysSection() {
             Give one to each app or team. Requests made with it are attributed to its team.
           </p>
         </div>
-        {!creating && (
+        {!creating && can('editor') && (
           <button
             type="button"
             className="button button-primary"
@@ -106,6 +108,7 @@ export function KeysSection() {
 }
 
 function KeyRow({ vkey }: { vkey: VirtualKey }) {
+  const { can } = useAuth()
   const revoke = useRevokeKey()
   const [confirming, setConfirming] = useState(false)
   const revoked = vkey.revoked_at !== null
@@ -125,7 +128,7 @@ function KeyRow({ vkey }: { vkey: VirtualKey }) {
       </td>
       <td>{revoked ? <Badge tone="neutral">Revoked</Badge> : <Badge tone="good">Active</Badge>}</td>
       <td className="actions-cell">
-        {!revoked && !confirming && (
+        {!revoked && !confirming && can('editor') && (
           <button
             type="button"
             className="button button-ghost button-danger"

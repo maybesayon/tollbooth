@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { EMPTY_ROUTES, fakeApi, metrics, spendReport, timeseries } from '../test/fakeApi'
-import { renderApp, signIn } from '../test/render'
+import { EMPTY_ROUTES, Reply, fakeApi, metrics, spendReport, timeseries } from '../test/fakeApi'
+import { renderApp } from '../test/render'
 
 const GROUPS = [
   {
@@ -17,7 +17,6 @@ const GROUPS = [
   { ...metrics({ requests: 30, unpriced_requests: 2, cost_usd: '0.0421' }), group: 'ads' },
 ]
 
-beforeEach(() => signIn())
 afterEach(() => vi.unstubAllGlobals())
 
 describe('overview', () => {
@@ -79,7 +78,7 @@ describe('overview', () => {
   })
 
   it('reports load errors', async () => {
-    fakeApi({ ...EMPTY_ROUTES, '/admin/spend': { detail: 'boom' } }, 500)
+    fakeApi({ ...EMPTY_ROUTES, '/admin/spend': new Reply(500, { detail: 'boom' }) })
     renderApp()
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load spend data')
   })

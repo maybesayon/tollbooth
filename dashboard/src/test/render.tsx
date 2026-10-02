@@ -16,7 +16,3 @@ export function renderApp(path = '/') {
     </QueryClientProvider>,
   )
 }
-
-export function signIn(token = 'secret-token') {
-  sessionStorage.setItem('tollbooth.adminToken', token)
-}

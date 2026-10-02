@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
+import { ROLE_LABELS } from '../auth/roles'
 import { useAuth } from '../auth/useAuth'
 import './Layout.css'
 
@@ -10,7 +11,7 @@ const NAV = [
 ]
 
 export function Layout() {
-  const { signOut } = useAuth()
+  const { me, signOut } = useAuth()
   return (
     <div className="layout">
       <header className="topbar">
@@ -26,7 +27,11 @@ export function Layout() {
               </NavLink>
             ))}
           </nav>
-          <button type="button" className="button button-ghost" onClick={signOut}>
+          <NavLink to="/settings" className="nav-link account-link" title="Settings">
+            {me?.user?.name ?? 'Admin token'}
+            {me && <span className="muted"> · {ROLE_LABELS[me.role]}</span>}
+          </NavLink>
+          <button type="button" className="button button-ghost" onClick={() => void signOut()}>
             Sign out
           </button>
         </div>

@@ -3,11 +3,13 @@ import { useBudgets, useDeleteBudget, useKeys } from '../../api/queries'
 import type { Budget, VirtualKey } from '../../api/types'
 import { PERIOD_LABELS, resetLabel, scopeLabel, severity } from '../../lib/budgets'
 import { formatUSD, formatUSDExact } from '../../lib/format'
+import { useAuth } from '../../auth/useAuth'
 import { Badge } from '../Badge'
 import { BudgetForm } from './BudgetForm'
 import { Meter } from './Meter'
 
 export function BudgetsSection() {
+  const { can } = useAuth()
   const budgets = useBudgets()
   const keys = useKeys(true)
   const [editing, setEditing] = useState<Budget | 'new' | null>(null)
@@ -22,7 +24,7 @@ export function BudgetsSection() {
             Spend limits per UTC day, week, or month. Hard limits block requests once reached.
           </p>
         </div>
-        {editing === null && (
+        {editing === null && can('editor') && (
           <button type="button" className="button button-primary" onClick={() => setEditing('new')}>
             New budget
           </button>
@@ -66,6 +68,7 @@ interface RowProps {
 }
 
 function BudgetRow({ budget, keys, onEdit }: RowProps) {
+  const { can } = useAuth()
   const remove = useDeleteBudget()
   const [confirming, setConfirming] = useState(false)
   const { usage } = budget
@@ -103,7 +106,7 @@ function BudgetRow({ budget, keys, onEdit }: RowProps) {
           <span className="muted"> · {usage.percent_used}%</span>
         </span>
         <span className="budget-actions">
-          {confirming ? (
+          {!can('editor') ? null : confirming ? (
             <>
               <span className="secondary">Delete this budget?</span>
               <button type="button" className="button" onClick={() => setConfirming(false)}>

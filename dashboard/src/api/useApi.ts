@@ -2,19 +2,18 @@ import { useCallback } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { ApiError, apiRequest, type RequestOptions } from './client'
 
-/** Authenticated request function; a 401 signs the user out. */
+/** Request function for signed-in pages; a 401 means the session ended, so sign out. */
 export function useApi() {
-  const { token, signOut } = useAuth()
+  const { expired } = useAuth()
   return useCallback(
     async <T>(path: string, options?: RequestOptions): Promise<T> => {
-      if (token === null) throw new ApiError(401, 'Not signed in')
       try {
-        return await apiRequest<T>(token, path, options)
+        return await apiRequest<T>(path, options)
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) signOut()
+        if (error instanceof ApiError && error.status === 401) expired()
         throw error
       }
     },
-    [token, signOut],
+    [expired],
   )
 }

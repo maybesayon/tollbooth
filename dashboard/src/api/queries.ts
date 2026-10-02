@@ -7,6 +7,12 @@ import {
 } from '@tanstack/react-query'
 import type {
   AlertChannel,
+  ApiTokenInfo,
+  AuditEvent,
+  CreatedApiToken,
+  CreatedUser,
+  Role,
+  User,
   Budget,
   BudgetAlert,
   BudgetInput,
@@ -192,5 +198,94 @@ export function useAlerts(limit = 25) {
     queryKey: ['alerts', limit],
     queryFn: ({ signal }) => api<BudgetAlert[]>('/admin/alerts', { params: { limit }, signal }),
     refetchInterval: 30_000,
+  })
+}
+
+export function useApiTokens() {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['api-tokens'],
+    queryFn: ({ signal }) => api<ApiTokenInfo[]>('/auth/tokens', { signal }),
+  })
+}
+
+export function useCreateApiToken() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) =>
+      api<CreatedApiToken>('/auth/tokens', { method: 'POST', body: { name } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-tokens'] }),
+  })
+}
+
+export function useDeleteApiToken() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<null>(`/auth/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-tokens'] }),
+  })
+}
+
+export function useChangePassword() {
+  const api = useApi()
+  return useMutation({
+    mutationFn: (body: { current_password: string; new_password: string }) =>
+      api<null>('/auth/password', { method: 'POST', body }),
+  })
+}
+
+export function useUsers() {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: ({ signal }) => api<User[]>('/admin/users', { signal }),
+  })
+}
+
+export function useCreateUser() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { email: string; name: string; role: Role }) =>
+      api<CreatedUser>('/admin/users', { method: 'POST', body }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+}
+
+export function useUpdateUser() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; role?: Role; disabled?: boolean }) =>
+      api<User>(`/admin/users/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+}
+
+export function useResetPassword() {
+  const api = useApi()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<{ temporary_password: string }>(`/admin/users/${encodeURIComponent(id)}/reset-password`, {
+        method: 'POST',
+      }),
+  })
+}
+
+export function useAuditLog(action: string, pageSize = 50) {
+  const api = useApi()
+  return useInfiniteQuery({
+    queryKey: ['audit', action, pageSize],
+    queryFn: ({ pageParam, signal }) =>
+      api<AuditEvent[]>('/admin/audit', {
+        params: { limit: pageSize, before: pageParam, action: action || undefined },
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) =>
+      page.length === pageSize ? (page[page.length - 1]?.created_at ?? null) : null,
   })
 }

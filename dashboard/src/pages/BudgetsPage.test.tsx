@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AlertChannel, Budget, BudgetAlert, VirtualKey } from '../api/types'
 import { EMPTY_ROUTES, fakeApi, type Routes } from '../test/fakeApi'
-import { renderApp, signIn } from '../test/render'
+import { renderApp } from '../test/render'
 
 function budget(overrides: Partial<Budget> = {}): Budget {
   return {
@@ -64,7 +64,6 @@ function jsonBody(init: RequestInit): unknown {
   return JSON.parse(String(init.body))
 }
 
-beforeEach(() => signIn())
 afterEach(() => vi.unstubAllGlobals())
 
 describe('budgets page', () => {

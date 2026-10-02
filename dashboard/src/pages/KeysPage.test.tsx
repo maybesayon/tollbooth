@@ -1,8 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Credential, VirtualKey } from '../api/types'
-import { EMPTY_ROUTES, fakeApi } from '../test/fakeApi'
-import { renderApp, signIn } from '../test/render'
+import { EMPTY_ROUTES, Reply, fakeApi } from '../test/fakeApi'
+import { renderApp } from '../test/render'
 
 const CREDENTIAL: Credential = {
   id: 'cred1',
@@ -29,7 +29,6 @@ function body(init: RequestInit): unknown {
   return JSON.parse(String(init.body))
 }
 
-beforeEach(() => signIn())
 afterEach(() => vi.unstubAllGlobals())
 
 describe('keys page', () => {
@@ -125,9 +124,12 @@ describe('keys page', () => {
   })
 
   it('explains a duplicate credential name', async () => {
-    fakeApi({ ...EMPTY_ROUTES, '/admin/credentials': { detail: 'exists' } }, 409)
+    fakeApi({
+      ...EMPTY_ROUTES,
+      '/admin/credentials': (_url: URL, init: RequestInit) =>
+        init.method === 'POST' ? new Reply(409, { detail: 'exists' }) : [],
+    })
     renderApp('/keys')
-    // The list request fails with 409 too; the form still works.
     await userEvent.click(await screen.findByRole('button', { name: 'Add credential' }))
     await userEvent.type(screen.getByLabelText('Name'), 'dup')
     await userEvent.type(screen.getByLabelText('API key'), 'x')

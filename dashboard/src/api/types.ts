@@ -192,3 +192,55 @@ export interface BudgetAlert {
   created_at: string
   deliveries: AlertDelivery[]
 }
+
+export type Role = 'viewer' | 'editor' | 'admin'
+
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: Role
+  active: boolean
+  created_at: string
+  last_login_at: string | null
+  disabled_at: string | null
+}
+
+export interface Me {
+  user: User | null
+  role: Role
+  via: 'session' | 'api_token' | 'admin_token'
+}
+
+export interface SetupStatus {
+  needs_setup: boolean
+  setup_with_admin_token: boolean
+}
+
+export interface ApiTokenInfo {
+  id: string
+  name: string
+  prefix: string
+  created_at: string
+  last_used_at: string | null
+}
+
+export interface CreatedApiToken extends ApiTokenInfo {
+  token: string
+}
+
+export interface CreatedUser extends User {
+  temporary_password: string | null
+}
+
+export interface AuditEvent {
+  id: string
+  created_at: string
+  actor_type: string
+  actor_id: string | null
+  actor_label: string
+  action: string
+  target_type: string | null
+  target_id: string | null
+  details: Record<string, unknown>
+}
