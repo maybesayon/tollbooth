@@ -1,0 +1,23 @@
+# Model routes. A client that sends a route name as its `model` is served by the route's targets:
+# the first that succeeds wins, falling back on connection errors, timeouts, 401/403, 429 and 5xx.
+# Edit and restart Tollbooth to apply. Route names take precedence over real model names.
+#
+# `credential` is the name of a provider credential (see Keys > Provider credentials). Targets on
+# the other API (an OpenAI client served by Claude, or the reverse) are translated automatically
+# for plain text conversations; requests using tools or images only use targets on their own API.
+#
+# strategy = "fallback" (default) tries targets in the order listed; "cheapest" orders them by
+# their price in pricing.toml.
+#
+# [routes.fast]
+# targets = [
+#   { credential = "openai-prod", model = "gpt-5.4-mini" },
+#   { credential = "anthropic-prod", model = "claude-haiku-4-5" },
+# ]
+#
+# [routes.smart]
+# strategy = "cheapest"
+# targets = [
+#   { credential = "anthropic-prod", model = "claude-sonnet-5" },
+#   { credential = "openai-prod", model = "gpt-5.4" },
+# ]

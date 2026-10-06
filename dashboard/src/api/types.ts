@@ -91,6 +91,8 @@ export interface LedgerRequest {
   cost_usd: USD | null
   error_type: string | null
   upstream_request_id: string | null
+  route: string | null
+  attempts: number
 }
 
 export interface RequestPage {

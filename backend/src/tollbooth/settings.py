@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/tollbooth.db"
     auto_migrate: bool = True
     pricing_file: Path = Path("pricing.toml")
+    routes_file: Path = Path("routes.toml")
     openai_base_url: str = "https://api.openai.com"
     anthropic_base_url: str = "https://api.anthropic.com"
     upstream_connect_timeout: float = 10.0

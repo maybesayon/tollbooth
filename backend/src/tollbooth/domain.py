@@ -80,6 +80,8 @@ class LedgerEntry:
     ttfb_ms: int | None = None
     error_type: str | None = None
     upstream_request_id: str | None = None
+    route: str | None = None
+    attempts: int = 1
 
 
 class Interval(StrEnum):

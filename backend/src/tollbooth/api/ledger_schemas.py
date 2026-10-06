@@ -217,6 +217,8 @@ class RequestOut(BaseModel):
     cost_usd: USD | None
     error_type: str | None
     upstream_request_id: str | None
+    route: str | None
+    attempts: int
 
     @classmethod
     def of(cls, entry: LedgerEntry) -> "RequestOut":
@@ -240,6 +242,8 @@ class RequestOut(BaseModel):
             cost_usd=None if entry.cost_nanousd is None else nanousd_to_usd(entry.cost_nanousd),
             error_type=entry.error_type,
             upstream_request_id=entry.upstream_request_id,
+            route=entry.route,
+            attempts=entry.attempts,
         )
 
 

@@ -23,6 +23,8 @@ class RequestMeter:
     key: VirtualKey
     requested_model: str
     streamed: bool
+    route: str | None = None
+    attempts: int = 1
     started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     _start: float = field(default_factory=time.perf_counter)
     _first_byte: float | None = None
@@ -64,6 +66,8 @@ class RequestMeter:
             cost_nanousd=cost_nanousd(usage, price) if price else None,
             error_type=_fit(error_type),
             upstream_request_id=_fit(upstream_request_id),
+            route=self.route,
+            attempts=self.attempts,
         )
         try:
             await self.state.ledger.record(entry)

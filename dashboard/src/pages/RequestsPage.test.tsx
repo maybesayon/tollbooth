@@ -24,6 +24,8 @@ function request(overrides: Partial<LedgerRequest>): LedgerRequest {
     cost_usd: '0.0005178',
     error_type: null,
     upstream_request_id: 'req_abc',
+    route: null,
+    attempts: 1,
     ...overrides,
   }
 }
@@ -79,7 +81,7 @@ describe('requests page', () => {
     fakeApi({
       ...EMPTY_ROUTES,
       '/admin/requests': {
-        items: [request({ error_type: 'overloaded_error' })],
+        items: [request({ error_type: 'overloaded_error', route: 'fast', attempts: 2 })],
         next_cursor: null,
       },
     })
@@ -89,6 +91,7 @@ describe('requests page', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('overloaded_error')).toBeInTheDocument()
     expect(screen.getByText('req_abc')).toBeInTheDocument()
+    expect(screen.getByText('fast')).toBeInTheDocument()
     expect(screen.getByText('$0.0005178')).toBeInTheDocument()
   })
 

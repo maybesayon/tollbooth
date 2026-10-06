@@ -23,6 +23,8 @@ backend/src/tollbooth/
   settings.py        pydantic-settings, env prefix TOLLBOOTH_
   security.py        key generation/hashing, provider-key encryption
   pricing.py         pricing.toml loading and model resolution
+  routing.py         routes.toml loading, target planning (eligibility, cheapest order), retryable()
+  translate.py       OpenAI chat <-> Anthropic messages for text: requests, responses, streams
   cost.py            pure Decimal cost math
   domain.py          dataclasses shared across layers
   db.py              SQLAlchemy Core tables, engine factory, migration runner
@@ -49,6 +51,18 @@ Streaming usage:
   `prompt_tokens` has `cached_tokens` subtracted, and each bucket is priced at its own rate.
 - A client disconnect cancels the relay; the ledger write is shielded from cancellation and the
   row is recorded with outcome `client_disconnected` and whatever usage had arrived.
+
+Routing (`routing.py`, `translate.py`, `proxy/handler.py`):
+- A request whose `model` names a route is planned into targets (credential + model). Targets on
+  the client's API always qualify; the other API's targets need `translatable()` (text only, an
+  allowlist of fields), so nothing is sent in a degraded form. Unknown credentials are skipped.
+- `proxy()` loops over targets; `_attempt` returns None to fall back (connection errors, timeouts,
+  `retryable()` statuses) unless it is the last target. Streams commit once the status is known.
+- Translated streams: the upstream provider's `StreamMeter` still meters raw upstream events; the
+  translator only shapes what the client sees. Translated errors carry the provider error type and
+  a generic message, never the upstream body (it can echo the prompt).
+- The ledger row records the serving provider/model, `route`, and `attempts`. Plain requests keep
+  the virtual key's provider binding; routed requests may use any credential named in the route.
 
 Budgets (`budgets.py`, `periods.py`):
 - A budget limits spend per UTC calendar period (day, week from Monday, month) for everything, a
@@ -132,4 +146,5 @@ Auth (`auth.py`, `deps.py`, `api/auth_routes.py`, `api/user_routes.py`):
   (Slack + signed webhooks), with a dashboard Budgets page. (per team/key limits, soft/hard enforcement, notifications).
 - **Phase 4** (done): Postgres, multi-user accounts with roles, API tokens, audit log, dashboard
   sign-in, settings, and user management.
-- **Phase 5**: model routing (fallbacks, cost/latency-aware routing, provider translation).
+- **Phase 5** (done): model routing: routes.toml, fallbacks, cheapest-first, OpenAI <-> Anthropic
+  translation for text. Not yet: latency-aware routing, per-key route permissions, a routes UI.

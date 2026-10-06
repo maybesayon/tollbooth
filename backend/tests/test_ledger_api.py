@@ -179,6 +179,8 @@ async def test_requests_item_shape(
         "cost_usd": "0",
         "error_type": "rate_limit_exceeded",
         "upstream_request_id": None,
+        "route": None,
+        "attempts": 1,
     }
     unpriced = await _get(
         client, admin_headers, "/admin/requests", start="2026-09-02", model="gpt-4o-mini"

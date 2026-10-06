@@ -51,6 +51,8 @@ class ReceivedRequest:
 class MockProviders:
     def __init__(self) -> None:
         self.received: list[ReceivedRequest] = []
+        # model -> HTTP status to fail with, or "connect" to refuse the connection
+        self.fail_models: dict[str, int | str] = {}
 
     @property
     def transport(self) -> httpx.MockTransport:
@@ -68,6 +70,11 @@ class MockProviders:
             body = json.loads(content)
         except json.JSONDecodeError:
             return self._error(request, 400, "invalid_request_error", "body is not valid JSON")
+        failure = self.fail_models.get(body.get("model", ""))
+        if failure == "connect":
+            raise httpx.ConnectError("connection refused", request=request)
+        if isinstance(failure, int):
+            return self._error(request, failure, "overloaded_error", _echo(body))
         if request.url.host == "api.openai.com":
             return await self._openai(request, body, scenario)
         if request.url.host == "api.anthropic.com":
