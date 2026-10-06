@@ -37,6 +37,7 @@ from tollbooth.repositories.sql_auth import (
     SqlSessionRepository,
     SqlUserRepository,
 )
+from tollbooth.routing import load_routes
 from tollbooth.security import SecretBox
 from tollbooth.settings import Settings
 from tollbooth.state import AppState
@@ -57,6 +58,9 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         _configure_logging(resolved.log_level)
         pricing = load_pricing(resolved.pricing_file)
+        routes = load_routes(resolved.routes_file)
+        if routes:
+            logging.getLogger("tollbooth").info("loaded routes: %s", ", ".join(routes))
         if resolved.auto_migrate:
             await asyncio.to_thread(run_migrations, resolved.database_url)
         engine = create_engine(resolved.database_url)
@@ -78,6 +82,7 @@ def create_app(
             app.state.tollbooth = AppState(
                 settings=resolved,
                 pricing=pricing,
+                routes=routes,
                 engine=engine,
                 upstream=upstream,
                 secret_box=secret_box,
