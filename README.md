@@ -1,3 +1,5 @@
+https://github.com/user-attachments/assets/a4055e37-0976-4e38-a147-3a3ccfdaf818
+
 # Tollbooth
 
 An open-source proxy that meters every OpenAI and Anthropic request by team, model, and key, so you know exactly where your LLM spend goes.
