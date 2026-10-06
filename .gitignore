@@ -26,3 +26,6 @@ dashboard/dist/
 .DS_Store
 .idea/
 .vscode/
+
+# Launch video build files
+brag-output/
