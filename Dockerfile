@@ -26,10 +26,12 @@ RUN useradd --system --uid 10001 --home-dir /app tollbooth \
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY backend/pricing.toml /app/pricing.toml
+COPY backend/routes.toml /app/routes.toml
 COPY --from=dashboard /dashboard/dist /app/dashboard
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     TOLLBOOTH_PRICING_FILE=/app/pricing.toml \
+    TOLLBOOTH_ROUTES_FILE=/app/routes.toml \
     TOLLBOOTH_DATABASE_URL=sqlite+aiosqlite:////app/data/tollbooth.db \
     TOLLBOOTH_DASHBOARD_DIR=/app/dashboard
 USER tollbooth

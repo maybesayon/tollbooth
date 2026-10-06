@@ -194,11 +194,31 @@ Settings are read from environment variables; see [`.env.example`](.env.example)
 | `TOLLBOOTH_DATABASE_URL` | `sqlite+aiosqlite:///./data/tollbooth.db` | Or `postgresql+asyncpg://…` |
 | `TOLLBOOTH_AUTO_MIGRATE` | `true` | Run database migrations on startup |
 | `TOLLBOOTH_PRICING_FILE` | `pricing.toml` | |
+| `TOLLBOOTH_ROUTES_FILE` | `routes.toml` | Model routes; a missing file means no routes |
 | `TOLLBOOTH_OPENAI_BASE_URL` | `https://api.openai.com` | |
 | `TOLLBOOTH_ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | |
 | `TOLLBOOTH_UPSTREAM_CONNECT_TIMEOUT` / `_READ_TIMEOUT` | `10` / `600` | Seconds |
 | `TOLLBOOTH_DASHBOARD_DIR` | unset | Built dashboard to serve at `/dashboard` |
 | `TOLLBOOTH_LOG_LEVEL` | `INFO` | |
+
+## Model routing
+
+Clients can ask for a route instead of a model. Routes live in [`backend/routes.toml`](backend/routes.toml):
+
+```toml
+[routes.fast]
+targets = [
+  { credential = "openai-prod", model = "gpt-5.4-mini" },
+  { credential = "anthropic-prod", model = "claude-haiku-4-5" },
+]
+```
+
+With that file, `client.chat.completions.create(model="fast", ...)` goes to `gpt-5.4-mini`. If OpenAI fails with a connection error, timeout, 401/403, 429, or 5xx, Tollbooth retries on `claude-haiku-4-5`, and the client still gets an OpenAI-format response, streaming included. The same works the other way round for Anthropic clients. `strategy = "cheapest"` tries targets in order of their price in `pricing.toml`.
+
+- Translation between the two APIs covers text conversations. Requests that use tools, images, or provider-specific parameters only use targets on their own API.
+- A stream falls back only before any of it reaches the client.
+- The ledger records the model that actually served each request (and prices it), the route, and the number of attempts. Responses carry `x-tollbooth-model`.
+- Any active virtual key can use any route. Budgets apply to routed requests as usual.
 
 ## Database
 
@@ -245,7 +265,7 @@ Tests run against in-process fakes of both provider APIs, so they need no networ
 2. **Web dashboard** (done)
 3. **Budgets and alerts** (done)
 4. **Postgres and multi-user accounts** (done)
-5. Model routing
+5. **Model routing** (done): fallbacks, cheapest-first routing, OpenAI ⇄ Anthropic translation
 
 ## License
 

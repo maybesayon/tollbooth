@@ -19,6 +19,7 @@ from tollbooth.repositories.base import (
     SessionRepository,
     UserRepository,
 )
+from tollbooth.routing import Route
 from tollbooth.security import SecretBox
 from tollbooth.settings import Settings
 
@@ -27,6 +28,7 @@ from tollbooth.settings import Settings
 class AppState:
     settings: Settings
     pricing: PricingTable
+    routes: dict[str, Route]
     engine: AsyncEngine
     upstream: httpx.AsyncClient
     secret_box: SecretBox

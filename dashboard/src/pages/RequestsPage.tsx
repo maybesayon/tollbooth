@@ -236,6 +236,8 @@ function RequestRow({ request, vkey }: { request: LedgerRequest; vkey: VirtualKe
         <tr className="request-details">
           <td colSpan={8}>
             <dl className="details-grid">
+              <Detail label="Route">{request.route ? <code>{request.route}</code> : '—'}</Detail>
+              <Detail label="Attempts">{String(request.attempts)}</Detail>
               <Detail label="Provider">
                 <ProviderName provider={request.provider} />
               </Detail>

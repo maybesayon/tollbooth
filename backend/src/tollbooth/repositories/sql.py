@@ -200,6 +200,8 @@ class SqlLedgerRepository:
                     cost_nanousd=entry.cost_nanousd,
                     error_type=entry.error_type,
                     upstream_request_id=entry.upstream_request_id,
+                    route=entry.route,
+                    attempts=entry.attempts,
                 )
             )
 
@@ -642,4 +644,6 @@ def _to_entry(row: Row[tuple[object, ...]]) -> LedgerEntry:
         cost_nanousd=m["cost_nanousd"],
         error_type=m["error_type"],
         upstream_request_id=m["upstream_request_id"],
+        route=m["route"],
+        attempts=m["attempts"],
     )

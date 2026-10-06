@@ -99,6 +99,8 @@ ledger = Table(
     Column("cost_nanousd", BigInteger, nullable=True),
     Column("error_type", String(200), nullable=True),
     Column("upstream_request_id", String(200), nullable=True),
+    Column("route", String(200), nullable=True),
+    Column("attempts", Integer, nullable=False, server_default="1"),
     Index(None, "team", "created_at"),
     Index(None, "virtual_key_id", "created_at"),
 )
