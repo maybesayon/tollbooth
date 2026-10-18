@@ -257,7 +257,7 @@ uv run ruff check && uv run ruff format --check
 TOLLBOOTH_ADMIN_TOKEN=dev TOLLBOOTH_ENCRYPTION_KEY=... uv run uvicorn tollbooth.main:create_app --factory --reload
 ```
 
-Tests run against in-process fakes of both provider APIs, so they need no network access or API keys. They use SQLite by default; set `TOLLBOOTH_TEST_POSTGRES_URL=postgresql+asyncpg://user@localhost:5432/postgres` to run the same suite against Postgres (each test gets a fresh database; the user needs `CREATEDB`). See [`CLAUDE.md`](CLAUDE.md) for conventions and the roadmap.
+Tests run against in-process fakes of both provider APIs, so they need no network access or API keys. They use SQLite by default; set `TOLLBOOTH_TEST_POSTGRES_URL=postgresql+asyncpg://user@localhost:5432/postgres` to run the same suite against Postgres (each test gets a fresh database; the user needs `CREATEDB`).
 
 ## Roadmap
 
