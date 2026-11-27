@@ -35,6 +35,12 @@ Start it:
 docker compose up -d
 ```
 
+Or skip the build and run the published image with the same `.env`:
+
+```bash
+docker run -d -p 8080:8080 --env-file .env -v tollbooth-data:/app/data ghcr.io/maybesayon/tollbooth:0.1.0
+```
+
 Register a real provider key, then issue a virtual key for a team:
 
 ```bash
