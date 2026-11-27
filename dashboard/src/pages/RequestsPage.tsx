@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
+import { buildPath } from '../api/client'
 import { useKeys, useRequestLog, useSpend } from '../api/queries'
 import type { LedgerFilters, LedgerRequest, Outcome, Provider, VirtualKey } from '../api/types'
 import { OutcomeBadge } from '../components/Badge'
@@ -94,6 +95,9 @@ export function RequestsPage() {
             Clear filters
           </button>
         )}
+        <a className="button" href={buildPath('/admin/requests.csv', { ...filters })} download>
+          Export CSV
+        </a>
       </div>
 
       {log.error && (

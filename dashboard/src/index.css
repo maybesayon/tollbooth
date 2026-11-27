@@ -151,6 +151,10 @@ code,
   white-space: nowrap;
 }
 
+a.button {
+  text-decoration: none;
+}
+
 .button:hover:not(:disabled) {
   background: var(--hover);
 }

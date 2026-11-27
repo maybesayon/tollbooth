@@ -112,6 +112,15 @@ describe('requests page', () => {
     )
   })
 
+  it('links to a CSV export of the filtered requests', async () => {
+    fakeApi(EMPTY_ROUTES)
+    renderApp('/requests?team=search&outcome=success')
+    expect(await screen.findByRole('link', { name: 'Export CSV' })).toHaveAttribute(
+      'href',
+      '/admin/requests.csv?outcome=success&team=search',
+    )
+  })
+
   it('filters by outcome and can clear filters', async () => {
     const api = fakeApi(EMPTY_ROUTES)
     renderApp('/requests')

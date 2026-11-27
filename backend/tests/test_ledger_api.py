@@ -1,9 +1,11 @@
+import csv
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
 
+from tollbooth.api import ledger_routes
 from tollbooth.domain import LedgerEntry, Outcome, Provider, Usage
 from tollbooth.state import AppState
 
@@ -196,6 +198,32 @@ async def test_requests_filters(client: httpx.AsyncClient, admin_headers: dict[s
     assert {r["id"] for r in day_two["items"]} == {"e4", "e5"}
 
 
+async def test_requests_csv(
+    client: httpx.AsyncClient,
+    admin_headers: dict[str, str],
+    state: AppState,
+    seeded: list[LedgerEntry],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ledger_routes, "EXPORT_BATCH", 2)
+    await state.ledger.record(
+        replace(BASE, id="e6", created_at=T0 + timedelta(days=2), model="=1+1", cost_nanousd=1)
+    )
+    response = await client.get("/admin/requests.csv", headers=admin_headers)
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "attachment" in response.headers["content-disposition"]
+    rows = list(csv.DictReader(response.text.splitlines()))
+    assert [r["id"] for r in rows] == ["e6", "e5", "e4", "e3", "e2", "e1"]
+    page = await _get(client, admin_headers, "/admin/requests")
+    assert list(rows[0]) == list(page["items"][0])
+    assert (rows[0]["model"], rows[0]["cost_usd"]) == ("'=1+1", "0.000000001")
+    assert rows[2]["cost_usd"] == ""
+
+    filtered = await client.get("/admin/requests.csv?team=ads", headers=admin_headers)
+    assert [r["id"] for r in csv.DictReader(filtered.text.splitlines())] == ["e2"]
+
+
 @pytest.mark.parametrize("params", [{"cursor": "garbage!"}, {"limit": "0"}, {"limit": "500"}])
 async def test_requests_rejects_bad_params(
     client: httpx.AsyncClient, admin_headers: dict[str, str], params: dict[str, str]
@@ -205,5 +233,5 @@ async def test_requests_rejects_bad_params(
 
 
 async def test_ledger_routes_require_admin(client: httpx.AsyncClient) -> None:
-    for path in ("/admin/requests", "/admin/spend/timeseries"):
+    for path in ("/admin/requests", "/admin/requests.csv", "/admin/spend/timeseries"):
         assert (await client.get(path)).status_code == 401

@@ -140,6 +140,7 @@ Admin routes take an API token (or the admin token) as `Authorization: Bearer â€
 | `GET` | `/admin/spend` | Spend report: `group_by=team\|model\|provider\|key`, plus the ledger filters below |
 | `GET` | `/admin/spend/timeseries` | Spend per `interval=day\|hour` bucket (UTC), optionally split by `group_by`; `start` and `end` required |
 | `GET` | `/admin/requests` | Ledger entries, newest first, metadata only. Paged with `limit` and `cursor` (`next_cursor` from the previous page). |
+| `GET` | `/admin/requests.csv` | Every matching entry as a CSV download, with the same filters and fields |
 | `POST` | `/admin/budgets` | Create a budget: `name`, `scope` (`{"type": "global"\|"team"\|"key", "value": ...}`), `period` (`day`\|`week`\|`month`, UTC), `limit_usd`, `enforcement` (`soft`\|`hard`), `thresholds` (percent, default `[50, 80, 100]`) |
 | `GET` | `/admin/budgets` | Budgets with current-period spend, percent used, and whether each is exhausted |
 | `GET` / `PATCH` / `DELETE` | `/admin/budgets/{id}` | Read, partially update, or delete a budget |
