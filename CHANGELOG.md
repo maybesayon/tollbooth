@@ -13,7 +13,7 @@ First release. An open-source proxy that meters every OpenAI and Anthropic reque
 Run it:
 
 ```
-docker run -p 8080:8080 ghcr.io/maybesayon/tollbooth:0.1.0
+docker run -p 8080:8080 --env-file .env -v tollbooth-data:/app/data ghcr.io/maybesayon/tollbooth:0.1.0
 ```
 
 See the README for compose files and configuration.
